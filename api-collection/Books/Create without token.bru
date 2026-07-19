@@ -1,0 +1,32 @@
+meta {
+  name: Create without token
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/books
+  body: json
+  auth: none
+}
+
+headers {
+  content-type: application/json
+}
+
+body:json {
+  {
+    "title": "Unauthorized book",
+    "author": "Anonymous",
+    "category": "Test"
+  }
+}
+
+tests {
+  test("returns the exact unauthenticated contract", function () {
+    expect(res.status).to.equal(401);
+    expect(res.body).to.deep.equal({
+      error: "Access denied: session credential missing or expired"
+    });
+  });
+}

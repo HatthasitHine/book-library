@@ -1,0 +1,21 @@
+meta {
+  name: Delete book
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{baseUrl}}/books/{{bookId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+tests {
+  test("deletes the book created by the previous request", function () {
+    expect(res.status).to.equal(204);
+  });
+}
