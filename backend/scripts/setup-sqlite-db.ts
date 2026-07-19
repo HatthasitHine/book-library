@@ -4,6 +4,15 @@ import { createRequire } from "node:module";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
+function pathsAreEqual(left: string, right: string): boolean {
+  const normalizedLeft = resolve(left);
+  const normalizedRight = resolve(right);
+
+  return process.platform === "win32"
+    ? normalizedLeft.toLowerCase() === normalizedRight.toLowerCase()
+    : normalizedLeft === normalizedRight;
+}
+
 export function resolveSqliteUrl(databaseUrl: string, backendDirectory: string): string {
   if (!databaseUrl.startsWith("file:")) {
     throw new Error("DATABASE_URL must use the SQLite file: scheme");
@@ -34,6 +43,10 @@ export async function ensureSqliteDatabaseFile(
   const databaseFilePath = absoluteDatabaseUrl.slice("file:".length);
 
   if (options.reset) {
+    const testDatabaseFilePath = resolve(backendDirectory, "test.db");
+    if (!pathsAreEqual(databaseFilePath, testDatabaseFilePath)) {
+      throw new Error("SQLite reset is only allowed for the backend test database");
+    }
     await rm(databaseFilePath, { force: true });
   }
   await mkdir(dirname(databaseFilePath), { recursive: true });

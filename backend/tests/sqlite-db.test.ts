@@ -1,7 +1,7 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   buildDbPushCommand,
@@ -64,13 +64,13 @@ describe("SQLite database setup command", () => {
     }
   });
 
-  it("resets a contained SQLite database file only when explicitly requested", async () => {
+  it("resets only the exact backend test database when explicitly requested", async () => {
     const directory = await mkdtemp(resolve(tmpdir(), "book-library-db-"));
-    const databaseFile = resolve(directory, "library.db");
+    const databaseFile = resolve(directory, "test.db");
     try {
       await writeFile(databaseFile, "existing database content");
 
-      await ensureSqliteDatabaseFile("file:./library.db", directory, { reset: true });
+      await ensureSqliteDatabaseFile("file:./test.db", directory, { reset: true });
 
       await expect(readFile(databaseFile)).resolves.toEqual(Buffer.alloc(0));
     } finally {
@@ -78,16 +78,37 @@ describe("SQLite database setup command", () => {
     }
   });
 
-  it("rejects parent-directory traversal before creating an outside database file", async () => {
+  it.each([
+    ["development database", "file:./dev.db", "dev.db"],
+    ["another contained database", "file:./library.db", "library.db"],
+    ["nested database", "file:./nested/library.db", "nested/library.db"],
+  ])("rejects reset for a %s before deleting it", async (_description, databaseUrl, filename) => {
+    const directory = await mkdtemp(resolve(tmpdir(), "book-library-db-"));
+    const databaseFile = resolve(directory, filename);
+    try {
+      await mkdir(dirname(databaseFile), { recursive: true });
+      await writeFile(databaseFile, "preserve this file");
+
+      await expect(ensureSqliteDatabaseFile(databaseUrl, directory, { reset: true })).rejects.toThrow(
+        "reset is only allowed for the backend test database",
+      );
+      await expect(readFile(databaseFile, "utf8")).resolves.toBe("preserve this file");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects parent-directory traversal reset before deleting an outside database file", async () => {
     const rootDirectory = await mkdtemp(resolve(tmpdir(), "book-library-db-"));
     const isolatedBackendDirectory = join(rootDirectory, "backend");
     const databaseName = `outside-${process.pid}.db`;
     const outsideDatabaseFile = resolve(isolatedBackendDirectory, "..", databaseName);
     try {
-      await expect(ensureSqliteDatabaseFile(`file:../${databaseName}`, isolatedBackendDirectory)).rejects.toThrow(
+      await writeFile(outsideDatabaseFile, "preserve this file");
+      await expect(ensureSqliteDatabaseFile(`file:../${databaseName}`, isolatedBackendDirectory, { reset: true })).rejects.toThrow(
         "must stay within the backend directory",
       );
-      await expect(readFile(outsideDatabaseFile)).rejects.toMatchObject({ code: "ENOENT" });
+      await expect(readFile(outsideDatabaseFile, "utf8")).resolves.toBe("preserve this file");
     } finally {
       await rm(outsideDatabaseFile, { force: true });
       await rm(rootDirectory, { recursive: true, force: true });
