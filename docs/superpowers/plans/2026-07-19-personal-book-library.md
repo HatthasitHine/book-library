@@ -734,7 +734,7 @@ git commit -m "feat: add guarded JWT login flow"
 
 **Interfaces:**
 - Produces: `listBooks(): Promise<Book[]>`, `createBook(input: BookInput): Promise<Book>`, `deleteBook(id: number): Promise<void>`
-- Produces: `BookForm({ onCreate, disabled })`, `BookList({ books, onDelete, deletingId })`, `BookSearch({ value, onChange, resultCount })`
+- Produces: `BookForm({ onCreate, disabled })`, `BookList({ books, onDelete, deletingIds: ReadonlySet<number> })`, `BookSearch({ value, onChange, resultCount })`
 - Consumes: `apiRequest`, `useAuth`, and protected `/books` route
 
 - [ ] **Step 1: Write failing library behavior tests**
@@ -787,7 +787,7 @@ const [books, setBooks] = useState<Book[]>([]);
 
 On mount, fetch once, set loading false in `finally`, and avoid updating after unmount. Use `useMemo` with `[books, searchTerm]` to filter. Use an action state (`"created" | "deleted" | null`) and an update `useEffect` with `[books, action]` to translate the latest mutation into “เพิ่มหนังสือแล้ว” or “ลบหนังสือแล้ว”; guard the initial empty action so initial load does not create a success notice.
 
-Create prepends the returned book. Delete disables only the active row, awaits API success, then filters by id. Network failures keep current data and set an actionable Thai error.
+Create prepends the returned book. Delete tracks pending ids and disables each active row, awaits API success, then filters by id. Network failures keep current data and set an actionable Thai error.
 
 - [ ] **Step 6: Add logout and replace the temporary route content**
 

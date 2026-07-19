@@ -34,24 +34,29 @@ export function LibraryPage() {
   }, []);
 
   useEffect(() => {
+    let active = true;
+
     async function loadBooks() {
       try {
         const fetchedBooks = await listBooks();
-        if (mountedRef.current) {
+        if (active) {
           setBooks(fetchedBooks);
         }
       } catch {
-        if (mountedRef.current) {
+        if (active) {
           setError("ไม่สามารถโหลดรายการหนังสือได้ กรุณาลองใหม่");
         }
       } finally {
-        if (mountedRef.current) {
+        if (active) {
           setLoading(false);
         }
       }
     }
 
     void loadBooks();
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {

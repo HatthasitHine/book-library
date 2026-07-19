@@ -1,9 +1,10 @@
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
+import { StrictMode } from "react";
 import App from "../App";
 import { AuthProvider } from "../auth/AuthProvider";
 
@@ -51,6 +52,21 @@ function renderLibrary() {
         <App />
       </AuthProvider>
     </MemoryRouter>,
+  );
+}
+
+function renderStrictLibrary() {
+  localStorage.setItem("book-library-token", "test-token");
+  localStorage.setItem("book-library-username", "reader");
+
+  return render(
+    <StrictMode>
+      <MemoryRouter initialEntries={["/books"]}>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </MemoryRouter>
+    </StrictMode>,
   );
 }
 
@@ -211,5 +227,42 @@ describe("LibraryPage", () => {
 
     earthseaDeletion.resolve(new HttpResponse(null, { status: 204 }));
     expect(await screen.findByText("ยังไม่มีหนังสือในคลัง")).toBeInTheDocument();
+  });
+
+  it("ignores the stale StrictMode load after a successful create", async () => {
+    const user = userEvent.setup();
+    const responses = [deferred<Response>(), deferred<Response>()];
+    let getRequestCount = 0;
+    server.use(
+      http.get("http://localhost:4000/api/books", () => {
+        const response = responses[getRequestCount];
+        getRequestCount += 1;
+        if (!response) {
+          throw new Error("Unexpected extra GET /books request");
+        }
+
+        return response.promise;
+      }),
+    );
+    renderStrictLibrary();
+
+    await waitFor(() => expect(getRequestCount).toBe(2));
+    responses[1].resolve(HttpResponse.json({ books: [dune, earthsea] }));
+    expect(await screen.findByText("Dune")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("ชื่อหนังสือ"), "Kindred");
+    await user.type(screen.getByLabelText("ผู้เขียน"), "Octavia E. Butler");
+    await user.type(screen.getByLabelText("หมวดหมู่"), "Science Fiction");
+    await user.click(screen.getByRole("button", { name: "เพิ่มหนังสือ" }));
+    expect(await screen.findByText("Kindred")).toBeInTheDocument();
+
+    await act(async () => {
+      responses[0].resolve(HttpResponse.json({ books: [earthsea] }));
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText("Kindred")).toBeInTheDocument();
+    expect(screen.getByText("Dune")).toBeInTheDocument();
+    expect(screen.queryByText("กำลังเปิดบัตรรายการ…")).not.toBeInTheDocument();
   });
 });
