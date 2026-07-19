@@ -28,9 +28,9 @@
 
 ## บันทึกส่งต่อรอบล่าสุด
 
-- สถานะ: Task 1 ผ่าน implementation และ task review แล้ว
-- ขั้นถัดไป: Task 2 — Validated configuration, Prisma schema, and reviewer seed
-- ผลทดสอบล่าสุด: build → test เหลือ backend 1 test file/1 test; root test, typecheck และ build ผ่าน
+- สถานะ: Task 2 ผ่าน implementation และ task review แล้ว
+- ขั้นถัดไป: Task 3 — JWT login and authentication middleware
+- ผลทดสอบล่าสุด: backend 10 tests ผ่าน; root test, typecheck และ build ผ่าน
 - Blocker: ไม่มี
 
 ## Definition of Done
