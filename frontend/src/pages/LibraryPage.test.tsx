@@ -130,6 +130,67 @@ describe("LibraryPage", () => {
     expect(screen.getByLabelText("ชื่อหนังสือ")).not.toHaveFocus();
   });
 
+  it("replaces a success notice with the next mutation failure", async () => {
+    const user = userEvent.setup();
+    let createAttempts = 0;
+    server.use(
+      http.post("http://localhost:4000/api/books", async ({ request }) => {
+        createAttempts += 1;
+        if (createAttempts === 2) {
+          return HttpResponse.json({ error: "Write failed" }, { status: 500 });
+        }
+
+        const input = (await request.json()) as { title: string; author: string; category: string };
+        return HttpResponse.json({ book: { id: 3, ...input, createdAt: "2026-07-19T01:00:00.000Z" } }, { status: 201 });
+      }),
+    );
+    renderLibrary();
+    await screen.findByText("Dune");
+
+    await user.type(screen.getByLabelText("ชื่อหนังสือ"), "Kindred");
+    await user.type(screen.getByLabelText("ผู้เขียน"), "Octavia E. Butler");
+    await user.type(screen.getByLabelText("หมวดหมู่"), "Science Fiction");
+    await user.click(screen.getByRole("button", { name: "เพิ่มหนังสือ" }));
+    expect(await screen.findByText("เพิ่มหนังสือแล้ว")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("ชื่อหนังสือ"), "Dawn");
+    await user.type(screen.getByLabelText("ผู้เขียน"), "Octavia E. Butler");
+    await user.type(screen.getByLabelText("หมวดหมู่"), "Science Fiction");
+    await user.click(screen.getByRole("button", { name: "เพิ่มหนังสือ" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("ไม่สามารถเพิ่มหนังสือได้ กรุณาลองใหม่");
+    expect(screen.queryByText("เพิ่มหนังสือแล้ว")).not.toBeInTheDocument();
+  });
+
+  it("creates a fresh announcement for repeated successful actions of the same kind", async () => {
+    const user = userEvent.setup();
+    let nextBookId = 3;
+    server.use(
+      http.post("http://localhost:4000/api/books", async ({ request }) => {
+        const input = (await request.json()) as { title: string; author: string; category: string };
+        const id = nextBookId;
+        nextBookId += 1;
+        return HttpResponse.json({ book: { id, ...input, createdAt: "2026-07-19T01:00:00.000Z" } }, { status: 201 });
+      }),
+    );
+    renderLibrary();
+    await screen.findByText("Dune");
+
+    await user.type(screen.getByLabelText("ชื่อหนังสือ"), "Kindred");
+    await user.type(screen.getByLabelText("ผู้เขียน"), "Octavia E. Butler");
+    await user.type(screen.getByLabelText("หมวดหมู่"), "Science Fiction");
+    await user.click(screen.getByRole("button", { name: "เพิ่มหนังสือ" }));
+    const firstNotice = await screen.findByText("เพิ่มหนังสือแล้ว");
+
+    await user.type(screen.getByLabelText("ชื่อหนังสือ"), "Dawn");
+    await user.type(screen.getByLabelText("ผู้เขียน"), "Octavia E. Butler");
+    await user.type(screen.getByLabelText("หมวดหมู่"), "Science Fiction");
+    await user.click(screen.getByRole("button", { name: "เพิ่มหนังสือ" }));
+    await screen.findByText("Dawn");
+
+    expect(screen.getByText("เพิ่มหนังสือแล้ว")).not.toBe(firstNotice);
+  });
+
   it("shows the empty state", async () => {
     server.use(http.get("http://localhost:4000/api/books", () => HttpResponse.json({ books: [] })));
     renderLibrary();
@@ -161,6 +222,17 @@ describe("LibraryPage", () => {
     expect(screen.getByText("A Wizard of Earthsea")).toBeInTheDocument();
   });
 
+  it("distinguishes zero search matches from an empty collection", async () => {
+    const user = userEvent.setup();
+    renderLibrary();
+    await screen.findByText("Dune");
+
+    await user.type(screen.getByLabelText("ค้นหาหนังสือ"), "no such book");
+
+    expect(screen.getByText("ไม่พบหนังสือที่ตรงกับการค้นหา")).toBeInTheDocument();
+    expect(screen.queryByText("ยังไม่มีหนังสือในคลัง")).not.toBeInTheDocument();
+  });
+
   it("keeps create controls disabled until the initial book load settles", async () => {
     const response = deferred<Response>();
     server.use(http.get("http://localhost:4000/api/books", () => response.promise));
@@ -173,6 +245,36 @@ describe("LibraryPage", () => {
 
     expect(await screen.findByText("Dune")).toBeInTheDocument();
     expect(screen.getByLabelText("ชื่อหนังสือ")).toBeEnabled();
+    expect(screen.getByRole("button", { name: "เพิ่มหนังสือ" })).toBeEnabled();
+  });
+
+  it("shows only a retryable load error and keeps mutations disabled until a valid snapshot exists", async () => {
+    const user = userEvent.setup();
+    const retryResponse = deferred<Response>();
+    let loadAttempts = 0;
+    server.use(
+      http.get("http://localhost:4000/api/books", () => {
+        loadAttempts += 1;
+        return loadAttempts === 1
+          ? HttpResponse.json({ error: "Read failed" }, { status: 500 })
+          : retryResponse.promise;
+      }),
+    );
+    renderLibrary();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("ไม่สามารถโหลดรายการหนังสือได้ กรุณาลองใหม่");
+    expect(screen.queryByText("ยังไม่มีหนังสือในคลัง")).not.toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "รายการหนังสือ" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("ชื่อหนังสือ")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "เพิ่มหนังสือ" })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "ลองโหลดอีกครั้ง" }));
+
+    expect(screen.getByText("กำลังเปิดบัตรรายการ…")).toBeInTheDocument();
+    expect(screen.getByLabelText("ชื่อหนังสือ")).toBeDisabled();
+    retryResponse.resolve(HttpResponse.json({ books: [dune, earthsea] }));
+    expect(await screen.findByText("Dune")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "เพิ่มหนังสือ" })).toBeEnabled();
   });
 

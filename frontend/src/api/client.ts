@@ -27,7 +27,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
 
   const response = await fetch(urlFor(path), { ...init, headers });
 
-  if (response.status === 401) {
+  if (response.status === 401 && localStorage.getItem(TOKEN_KEY) === token) {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USERNAME_KEY);
     window.dispatchEvent(new Event("book-library:unauthorized"));

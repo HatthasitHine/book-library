@@ -7,23 +7,31 @@ import { BookForm } from "../components/BookForm";
 import { BookList } from "../components/BookList";
 import { BookSearch } from "../components/BookSearch";
 import { StatusMessage } from "../components/StatusMessage";
-import { useAuth } from "../auth/AuthProvider";
+import { useAuth } from "../auth/authContext";
 
-type Action = "created" | "deleted" | null;
+type LoadState =
+  | { status: "loading" }
+  | { status: "error"; message: string }
+  | { status: "ready" };
+
+type Notice =
+  | { id: number; tone: "success"; message: string }
+  | { id: number; tone: "error"; message: string }
+  | null;
 
 export function LibraryPage() {
   const navigate = useNavigate();
   const { logout, username } = useAuth();
   // ref: 37aa88161f
   const [books, setBooks] = useState<Book[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [creating, setCreating] = useState(false);
   const [deletingIds, setDeletingIds] = useState<ReadonlySet<number>>(() => new Set());
   const [searchTerm, setSearchTerm] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [action, setAction] = useState<Action>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [notice, setNotice] = useState<Notice>(null);
   const mountedRef = useRef(false);
+  const noticeIdRef = useRef(0);
   const pendingDeleteIdsRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
@@ -41,14 +49,11 @@ export function LibraryPage() {
         const fetchedBooks = await listBooks();
         if (active) {
           setBooks(fetchedBooks);
+          setLoadState({ status: "ready" });
         }
       } catch {
         if (active) {
-          setError("ไม่สามารถโหลดรายการหนังสือได้ กรุณาลองใหม่");
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
+          setLoadState({ status: "error", message: "ไม่สามารถโหลดรายการหนังสือได้ กรุณาลองใหม่" });
         }
       }
     }
@@ -57,15 +62,7 @@ export function LibraryPage() {
     return () => {
       active = false;
     };
-  }, []);
-
-  useEffect(() => {
-    if (!action) {
-      return;
-    }
-
-    setSuccessMessage(action === "created" ? "เพิ่มหนังสือแล้ว" : "ลบหนังสือแล้ว");
-  }, [books, action]);
+  }, [loadAttempt]);
 
   const filteredBooks = useMemo(() => {
     const query = searchTerm.trim().toLocaleLowerCase();
@@ -78,10 +75,15 @@ export function LibraryPage() {
     );
   }, [books, searchTerm]);
 
+  function showNotice(tone: "success" | "error", message: string) {
+    noticeIdRef.current += 1;
+    setNotice({ id: noticeIdRef.current, tone, message });
+  }
+
   async function handleCreate(input: BookInput): Promise<void> {
     let unauthorized = false;
     setCreating(true);
-    setError(null);
+    setNotice(null);
 
     try {
       const book = await createBook(input);
@@ -90,11 +92,11 @@ export function LibraryPage() {
       }
 
       setBooks((currentBooks) => [book, ...currentBooks]);
-      setAction("created");
+      showNotice("success", "เพิ่มหนังสือแล้ว");
     } catch (caught) {
       unauthorized = caught instanceof ApiError && caught.status === 401;
       if (mountedRef.current && !unauthorized) {
-        setError("ไม่สามารถเพิ่มหนังสือได้ กรุณาลองใหม่");
+        showNotice("error", "ไม่สามารถเพิ่มหนังสือได้ กรุณาลองใหม่");
       }
       throw caught;
     } finally {
@@ -112,7 +114,7 @@ export function LibraryPage() {
 
     pendingDeleteIdsRef.current.add(id);
     setDeletingIds((currentIds) => new Set(currentIds).add(id));
-    setError(null);
+    setNotice(null);
 
     try {
       await deleteBook(id);
@@ -121,11 +123,11 @@ export function LibraryPage() {
       }
 
       setBooks((currentBooks) => currentBooks.filter((book) => book.id !== id));
-      setAction("deleted");
+      showNotice("success", "ลบหนังสือแล้ว");
     } catch (caught) {
       unauthorized = caught instanceof ApiError && caught.status === 401;
       if (mountedRef.current && !unauthorized) {
-        setError("ไม่สามารถลบหนังสือได้ กรุณาลองใหม่");
+        showNotice("error", "ไม่สามารถลบหนังสือได้ กรุณาลองใหม่");
       }
     } finally {
       pendingDeleteIdsRef.current.delete(id);
@@ -144,6 +146,11 @@ export function LibraryPage() {
     navigate("/login", { replace: true });
   }
 
+  function handleRetryLoad() {
+    setLoadState({ status: "loading" });
+    setLoadAttempt((currentAttempt) => currentAttempt + 1);
+  }
+
   return (
     <main className="library-page">
       <header className="library-header">
@@ -158,12 +165,29 @@ export function LibraryPage() {
         </section>
         <aside className="form-rail" aria-label="เพิ่มหนังสือ">
           <h2>ลงรายการใหม่</h2>
-          <BookForm onCreate={handleCreate} disabled={loading || creating} />
+          <BookForm onCreate={handleCreate} disabled={loadState.status !== "ready" || creating} />
         </aside>
         <section className="catalogue" aria-label="รายการในคลัง">
-          <StatusMessage message={successMessage} />
-          <StatusMessage message={error} tone="error" />
-          {loading ? <p className="loading-state" role="status" aria-live="polite">กำลังเปิดบัตรรายการ…</p> : <BookList books={filteredBooks} onDelete={handleDelete} deletingIds={deletingIds} />}
+          {loadState.status === "loading" ? (
+            <p className="loading-state" role="status" aria-live="polite">กำลังเปิดบัตรรายการ…</p>
+          ) : null}
+          {loadState.status === "error" ? (
+            <>
+              <StatusMessage message={loadState.message} tone="error" />
+              <button type="button" onClick={handleRetryLoad}>ลองโหลดอีกครั้ง</button>
+            </>
+          ) : null}
+          {loadState.status === "ready" ? (
+            <>
+              <StatusMessage key={notice?.id} message={notice?.message ?? null} tone={notice?.tone} />
+              <BookList
+                books={filteredBooks}
+                onDelete={handleDelete}
+                deletingIds={deletingIds}
+                isFiltered={searchTerm.trim().length > 0}
+              />
+            </>
+          ) : null}
         </section>
       </div>
       <footer className="library-session">

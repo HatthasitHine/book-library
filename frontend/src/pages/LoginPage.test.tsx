@@ -8,6 +8,7 @@ import App from "../App";
 import { AuthProvider } from "../auth/AuthProvider";
 
 const server = setupServer(
+  http.get("http://localhost:4000/api/books", () => HttpResponse.json({ books: [] })),
   http.post("http://localhost:4000/api/login", async ({ request }) => {
     const credentials = (await request.json()) as { username: string; password: string };
 

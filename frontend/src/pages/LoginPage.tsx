@@ -3,7 +3,7 @@ import type { FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { loginRequest } from "../api/auth";
 import { ApiError } from "../api/types";
-import { useAuth } from "../auth/AuthProvider";
+import { useAuth } from "../auth/authContext";
 
 interface LoginLocationState {
   message?: string;

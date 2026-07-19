@@ -5,6 +5,15 @@ import { apiRequest } from "./client";
 
 let receivedHeaders: Headers;
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((nextResolve) => {
+    resolve = nextResolve;
+  });
+
+  return { promise, resolve };
+}
+
 const server = setupServer(
   http.all("http://localhost:4000/api/headers", ({ request }) => {
     receivedHeaders = request.headers;
@@ -107,5 +116,28 @@ describe("apiRequest", () => {
       body: new Blob(["binary-ish"], { type: "text/plain" }),
     });
     expect(receivedHeaders.get("content-type")).toBe("text/plain");
+  });
+
+  it("does not clear a newer session when an older request receives a deferred 401", async () => {
+    const response = deferred<Response>();
+    let unauthorizedEvents = 0;
+    const countUnauthorized = () => {
+      unauthorizedEvents += 1;
+    };
+    server.use(http.get("http://localhost:4000/api/stale-session", () => response.promise));
+    window.addEventListener("book-library:unauthorized", countUnauthorized);
+    localStorage.setItem("book-library-token", "token-a");
+    localStorage.setItem("book-library-username", "reader-a");
+
+    const staleRequest = apiRequest<void>("/stale-session");
+    localStorage.setItem("book-library-token", "token-b");
+    localStorage.setItem("book-library-username", "reader-b");
+    response.resolve(HttpResponse.json({ error: "Expired token" }, { status: 401 }));
+
+    await expect(staleRequest).rejects.toMatchObject({ status: 401 });
+    expect(localStorage.getItem("book-library-token")).toBe("token-b");
+    expect(localStorage.getItem("book-library-username")).toBe("reader-b");
+    expect(unauthorizedEvents).toBe(0);
+    window.removeEventListener("book-library:unauthorized", countUnauthorized);
   });
 });

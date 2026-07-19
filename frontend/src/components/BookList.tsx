@@ -4,11 +4,12 @@ interface BookListProps {
   books: Book[];
   onDelete: (id: number) => Promise<void>;
   deletingIds: ReadonlySet<number>;
+  isFiltered?: boolean;
 }
 
-export function BookList({ books, onDelete, deletingIds }: BookListProps) {
+export function BookList({ books, onDelete, deletingIds, isFiltered = false }: BookListProps) {
   if (books.length === 0) {
-    return <p>ยังไม่มีหนังสือในคลัง</p>;
+    return <p>{isFiltered ? "ไม่พบหนังสือที่ตรงกับการค้นหา" : "ยังไม่มีหนังสือในคลัง"}</p>;
   }
 
   return (
