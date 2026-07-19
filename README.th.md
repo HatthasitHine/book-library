@@ -120,4 +120,4 @@ try {
 
 ## การตรวจผ่าน Browser
 
-ตรวจ flow หลักและ responsive layout แล้วที่ 360×800 และ 1440×900 รวมถึง loading, เพิ่ม/ล้างฟอร์ม/focus, ค้นหา, ลบ, logout, focus ที่มองเห็นได้, ข้อความยาว, touch target 44 px และการไม่ล้นแนวนอน ส่วนกรณี missing/invalid token ครอบคลุมด้วย automated tests, Bruno และ HTTP checks
+ตรวจ flow หลักและ responsive layout แล้วที่ 360×800 และ 1440×900 รวมถึง loading, เพิ่ม/ล้างฟอร์ม/focus, ค้นหา, ลบ, logout, ข้อความยาว และ touch target 44 px ส่วนกรณี missing/invalid token จะครอบคลุมด้วย automated tests, Bruno และ HTTP checks

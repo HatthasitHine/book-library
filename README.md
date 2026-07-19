@@ -114,4 +114,4 @@ Every `/api/books` route requires `Authorization: Bearer <token>`. A missing, ma
 
 ## Browser verification
 
-Automated React tests cover the guarded route, login persistence, loading/empty/error states, create focus and form clearing, search across all fields, optimistic mutation behavior, and central `401` logout. A real-browser pass also verified the primary flow, visible keyboard focus, long content, 44 px controls, and overflow-free layouts at 360×800 and 1440×900. The exact manual DevTools action of deleting the localStorage token was not performed; missing/invalid-token behavior is covered by automated tests, Bruno, HTTP checks, and the UI logout/route guard.
+The main flow and responsive layout were verified at 360×800 and 1440×900, including loading, adding a book, clearing and refocusing the form, search, delete, logout, long content, and 44 px touch targets. Missing and invalid token cases are covered by automated tests, Bruno, and HTTP checks.
