@@ -1,0 +1,196 @@
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+import {
+  buildDbPushCommand,
+  ensureSqliteDatabaseFile,
+  resolveSetupDatabaseUrl,
+  resolveSqliteUrl,
+} from "../scripts/setup-sqlite-db.js";
+
+const backendDirectory = resolve("backend");
+const localPrismaCli = createRequire(import.meta.url).resolve("prisma/build/index.js");
+
+describe("SQLite database setup command", () => {
+  it("uses a custom configured URL when normal setup has no explicit test URL", () => {
+    expect(resolveSetupDatabaseUrl(undefined, "file:./custom-library.db")).toBe(
+      "file:./custom-library.db",
+    );
+  });
+
+  it("keeps the exact explicit test URL separate from a configured development URL", () => {
+    expect(resolveSetupDatabaseUrl("file:./test.db", "file:./custom-library.db")).toBe(
+      "file:./test.db",
+    );
+  });
+
+  it("requires DATABASE_URL when setup receives no explicit test URL", () => {
+    expect(() => resolveSetupDatabaseUrl(undefined, undefined)).toThrow(
+      "DATABASE_URL must be set",
+    );
+  });
+
+  it("uses environment configuration for normal setup and an exact test URL for reset", async () => {
+    const packageJson = JSON.parse(
+      await readFile(new URL("../package.json", import.meta.url), "utf8"),
+    ) as { scripts: Record<string, string> };
+
+    expect(packageJson.scripts["prisma:setup"]).toBe("tsx scripts/setup-sqlite-db.ts");
+    expect(packageJson.scripts["test:db"]).toContain(
+      "tsx scripts/setup-sqlite-db.ts file:./test.db --reset",
+    );
+  });
+
+  it("resolves relative SQLite URLs from the backend directory", () => {
+    expect(resolveSqliteUrl("file:./test.db", backendDirectory)).toBe(
+      `file:${resolve(backendDirectory, "test.db").replaceAll("\\", "/")}`,
+    );
+  });
+
+  it("preserves an already absolute SQLite URL inside the backend directory", () => {
+    const databaseUrl = `file:${resolve(backendDirectory, "test.db").replaceAll("\\", "/")}`;
+
+    expect(resolveSqliteUrl(databaseUrl, backendDirectory)).toBe(databaseUrl);
+  });
+
+  it("builds a shell-free Node command for the resolved local Prisma CLI", () => {
+    expect(buildDbPushCommand("file:./test.db", backendDirectory, localPrismaCli)).toEqual({
+      executable: process.execPath,
+      arguments: [
+        localPrismaCli,
+        "db",
+        "push",
+        "--url",
+        `file:${resolve(backendDirectory, "test.db").replaceAll("\\", "/")}`,
+      ],
+    });
+  });
+
+  it("creates a missing SQLite database file at its resolved absolute URL", async () => {
+    const directory = await mkdtemp(resolve(tmpdir(), "book-library-db-"));
+    try {
+      const databaseUrl = await ensureSqliteDatabaseFile("file:./nested/library.db", directory);
+
+      expect(databaseUrl).toBe(`file:${resolve(directory, "nested/library.db").replaceAll("\\", "/")}`);
+      await expect(readFile(resolve(directory, "nested/library.db"))).resolves.toEqual(Buffer.alloc(0));
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("does not truncate an existing SQLite database file", async () => {
+    const directory = await mkdtemp(resolve(tmpdir(), "book-library-db-"));
+    const databaseFile = resolve(directory, "library.db");
+    try {
+      await writeFile(databaseFile, "existing database content");
+
+      await ensureSqliteDatabaseFile("file:./library.db", directory);
+
+      await expect(readFile(databaseFile, "utf8")).resolves.toBe("existing database content");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("resets only the exact backend test database when explicitly requested", async () => {
+    const directory = await mkdtemp(resolve(tmpdir(), "book-library-db-"));
+    const databaseFile = resolve(directory, "test.db");
+    try {
+      await writeFile(databaseFile, "existing database content");
+
+      await ensureSqliteDatabaseFile("file:./test.db", directory, { reset: true });
+
+      await expect(readFile(databaseFile)).resolves.toEqual(Buffer.alloc(0));
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    ["development database", "file:./dev.db", "dev.db"],
+    ["another contained database", "file:./library.db", "library.db"],
+    ["nested database", "file:./nested/library.db", "nested/library.db"],
+  ])("rejects reset for a %s before deleting it", async (_description, databaseUrl, filename) => {
+    const directory = await mkdtemp(resolve(tmpdir(), "book-library-db-"));
+    const databaseFile = resolve(directory, filename);
+    try {
+      await mkdir(dirname(databaseFile), { recursive: true });
+      await writeFile(databaseFile, "preserve this file");
+
+      await expect(ensureSqliteDatabaseFile(databaseUrl, directory, { reset: true })).rejects.toThrow(
+        "reset is only allowed for the backend test database",
+      );
+      await expect(readFile(databaseFile, "utf8")).resolves.toBe("preserve this file");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects parent-directory traversal reset before deleting an outside database file", async () => {
+    const rootDirectory = await mkdtemp(resolve(tmpdir(), "book-library-db-"));
+    const isolatedBackendDirectory = join(rootDirectory, "backend");
+    const databaseName = `outside-${process.pid}.db`;
+    const outsideDatabaseFile = resolve(isolatedBackendDirectory, "..", databaseName);
+    try {
+      await writeFile(outsideDatabaseFile, "preserve this file");
+      await expect(ensureSqliteDatabaseFile(`file:../${databaseName}`, isolatedBackendDirectory, { reset: true })).rejects.toThrow(
+        "must stay within the backend directory",
+      );
+      await expect(readFile(outsideDatabaseFile, "utf8")).resolves.toBe("preserve this file");
+    } finally {
+      await rm(outsideDatabaseFile, { force: true });
+      await rm(rootDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects deeper traversal before creating an outside database file", async () => {
+    const rootDirectory = await mkdtemp(resolve(tmpdir(), "book-library-db-"));
+    const isolatedBackendDirectory = join(rootDirectory, "backend");
+    const databaseName = `outside-${process.pid}.db`;
+    const outsideDatabaseFile = resolve(isolatedBackendDirectory, "..", "..", databaseName);
+    try {
+      await expect(ensureSqliteDatabaseFile(`file:../../${databaseName}`, isolatedBackendDirectory)).rejects.toThrow(
+        "must stay within the backend directory",
+      );
+      await expect(readFile(outsideDatabaseFile)).rejects.toMatchObject({ code: "ENOENT" });
+    } finally {
+      await rm(outsideDatabaseFile, { force: true });
+      await rm(rootDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects an absolute URL outside the backend directory before file creation", async () => {
+    const rootDirectory = await mkdtemp(resolve(tmpdir(), "book-library-db-"));
+    const isolatedBackendDirectory = join(rootDirectory, "backend");
+    const outsideDatabaseFile = join(rootDirectory, "outside.db");
+    try {
+      const outsideDatabaseUrl = `file:${outsideDatabaseFile.replaceAll("\\", "/")}`;
+
+      await expect(ensureSqliteDatabaseFile(outsideDatabaseUrl, isolatedBackendDirectory)).rejects.toThrow(
+        "must stay within the backend directory",
+      );
+      await expect(readFile(outsideDatabaseFile)).rejects.toMatchObject({ code: "ENOENT" });
+    } finally {
+      await rm(rootDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects an outside reset target before deleting its existing contents", async () => {
+    const rootDirectory = await mkdtemp(resolve(tmpdir(), "book-library-db-"));
+    const isolatedBackendDirectory = join(rootDirectory, "backend");
+    const outsideDatabaseFile = join(rootDirectory, "outside.db");
+    try {
+      await writeFile(outsideDatabaseFile, "preserve this file");
+      const outsideDatabaseUrl = `file:${outsideDatabaseFile.replaceAll("\\", "/")}`;
+
+      await expect(ensureSqliteDatabaseFile(outsideDatabaseUrl, isolatedBackendDirectory, { reset: true })).rejects.toThrow(
+        "must stay within the backend directory",
+      );
+      await expect(readFile(outsideDatabaseFile, "utf8")).resolves.toBe("preserve this file");
+    } finally {
+      await rm(rootDirectory, { recursive: true, force: true });
+    }
+  });
+});

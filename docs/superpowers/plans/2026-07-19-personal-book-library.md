@@ -30,7 +30,7 @@
 |---|---|---|
 | Workspace | `package.json`, `.gitignore`, `START-HERE.md` | Shared scripts, ignored artifacts, daily workflow |
 | Backend boot | `backend/src/app.ts`, `backend/src/server.ts`, `backend/src/config/env.ts` | Express composition, listener, validated configuration |
-| Data | `backend/prisma/schema.prisma`, `backend/prisma/seed.ts`, `backend/src/db/prisma.ts` | User/Book schema, reviewer user, Prisma lifecycle |
+| Data | `backend/prisma/schema.prisma`, `backend/prisma/seed.ts`, `backend/prisma.config.ts`, `backend/generated/`, `backend/src/db/prisma.ts` | User/Book schema, generated Prisma client, reviewer user, Prisma lifecycle |
 | Auth | `backend/src/modules/auth/*`, `backend/src/auth/*`, `backend/src/middleware/authenticate.ts` | Login, password comparison, JWT issue/verify, route protection |
 | Books | `backend/src/modules/books/*` | Validated list/create/delete behavior |
 | Frontend transport | `frontend/src/api/*` | Typed contracts, Bearer header, centralized 401 handling |
@@ -59,7 +59,7 @@
 - Produces: backend import alias-free ESM TypeScript and frontend Vite React TypeScript runtime
 - Consumes: Node.js `>=22` and npm `>=10`
 
-- [ ] **Step 1: Initialize Git and scaffold both workspaces**
+- [x] **Step 1: Initialize Git and scaffold both workspaces**
 
 Run:
 
@@ -73,7 +73,7 @@ npm init -w backend -y
 
 Expected: `.git/`, `frontend/`, `backend/`, root `package.json`, and both workspace package files exist.
 
-- [ ] **Step 2: Install runtime and test dependencies**
+- [x] **Step 2: Install runtime and test dependencies**
 
 Run:
 
@@ -87,7 +87,7 @@ npm install -D --workspace frontend vitest jsdom @testing-library/react @testing
 
 Expected: one root `package-lock.json`; dependencies are recorded in the correct workspaces.
 
-- [ ] **Step 3: Configure root scripts and ignored artifacts**
+- [x] **Step 3: Configure root scripts and ignored artifacts**
 
 Set root `package.json` to include:
 
@@ -118,13 +118,14 @@ node_modules/
 dist/
 coverage/
 frontend/.vite/
+backend/generated/
 *.log
 .DS_Store
 ```
 
 Keep Prisma migrations tracked; only the generated lock line above is ignored.
 
-- [ ] **Step 4: Configure backend and frontend quality commands**
+- [x] **Step 4: Configure backend and frontend quality commands**
 
 Use these backend scripts:
 
@@ -135,15 +136,13 @@ Use these backend scripts:
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/src/server.js",
-    "test:db": "cross-env DATABASE_URL=file:./test.db prisma db push --skip-generate",
-    "test": "npm run test:db && vitest run",
-    "test:watch": "npm run test:db && vitest",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed"
-  },
-  "prisma": { "seed": "tsx prisma/seed.ts" }
+  }
 }
 ```
 
@@ -188,7 +187,7 @@ Create the first real backend constant in `backend/src/server.ts` so the empty w
 export const SERVER_READY_MESSAGE = "Book library server is up and ready to roll";
 ```
 
-- [ ] **Step 5: Run initial quality gates**
+- [x] **Step 5: Run initial quality gates**
 
 Run:
 
@@ -199,7 +198,7 @@ npm run build
 
 Expected: both commands exit 0; Vite starter builds and empty backend project type-checks.
 
-- [ ] **Step 6: Commit the workspace foundation**
+- [x] **Step 6: Commit the workspace foundation**
 
 ```powershell
 git add package.json package-lock.json .gitignore backend frontend START-HERE.md docs
@@ -218,15 +217,23 @@ Expected: clean worktree after commit.
 - Create: `backend/src/db/prisma.ts`
 - Create: `backend/prisma/schema.prisma`
 - Create: `backend/prisma/seed.ts`
+- Create: `backend/prisma.config.ts`
+- Create: `backend/prisma/migrations/0_init/migration.sql`
+- Create: `backend/prisma/migrations/migration_lock.toml`
+- Create: `backend/scripts/setup-sqlite-db.ts`
+- Generate: `backend/generated/` Prisma client output
 - Create: `backend/tests/setup.ts`
 - Create: `backend/tests/database.test.ts`
+- Create: `backend/tests/sqlite-db.test.ts`
 
 **Interfaces:**
 - Produces: `env` with `PORT`, `DATABASE_URL`, `JWT_SECRET`, `CLIENT_ORIGIN`, `SEED_USERNAME`, `SEED_PASSWORD`
-- Produces: singleton `prisma: PrismaClient`
+- Produces: generated Prisma client in `backend/generated/`
+- Produces: singleton `prisma: PrismaClient` using the Prisma 7 SQLite adapter
 - Produces: Prisma models `User` and `Book`
+- Produces: tracked initial migration SQL plus portable local/test SQLite setup
 
-- [ ] **Step 1: Write the failing persistence test**
+- [x] **Step 1: Write the failing persistence test**
 
 Create `backend/tests/database.test.ts`:
 
@@ -247,12 +254,21 @@ describe("Book persistence", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and observe the expected failure**
+- [x] **Step 2: Run the test and observe the expected failure**
 
-Run: `npm test --workspace backend -- database.test.ts`  
+Run: `npm test --workspace backend -- database.test.ts`
 Expected: FAIL because `src/db/prisma.ts` and Prisma model are not defined.
 
-- [ ] **Step 3: Define environment and schema**
+- [x] **Step 3: Install Prisma 7 SQLite dependencies and define configuration**
+
+Run:
+
+```powershell
+npm install --workspace backend @prisma/adapter-better-sqlite3 better-sqlite3
+npm install -D --workspace backend @types/better-sqlite3
+```
+
+Expected: the backend can instantiate Prisma's SQLite adapter with type definitions available to TypeScript.
 
 Create `backend/.env.example`:
 
@@ -280,7 +296,53 @@ const EnvSchema = z.object({
 export const env = EnvSchema.parse(process.env);
 ```
 
-Define `User` and `Book` in `schema.prisma` using the fields and limits documented in the design spec; use SQLite provider and `env("DATABASE_URL")`.
+Create `backend/prisma/schema.prisma`:
+
+```prisma
+datasource db {
+  provider = "sqlite"
+}
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated"
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+model Book {
+  id        Int      @id @default(autoincrement())
+  title     String
+  author    String
+  category  String
+  createdAt DateTime @default(now())
+}
+```
+
+Create `backend/prisma.config.ts`:
+
+```ts
+import "dotenv/config";
+import { defineConfig, env } from "prisma/config";
+
+export default defineConfig({
+  schema: "prisma/schema.prisma",
+  migrations: {
+    path: "prisma/migrations",
+    seed: "tsx prisma/seed.ts",
+  },
+  datasource: {
+    url: env("DATABASE_URL"),
+  },
+});
+```
+
+Prisma 7 note: `prisma.config.ts` owns the datasource URL and seed command; the schema datasource contains the provider only. The `prisma-client` generator writes the client to `backend/generated/`, which stays ignored. Runtime SQLite uses `@prisma/adapter-better-sqlite3` with `better-sqlite3`.
 
 Create `backend/tests/setup.ts` so test imports always receive deterministic local-only configuration:
 
@@ -293,9 +355,37 @@ process.env.SEED_USERNAME = "reviewer";
 process.env.SEED_PASSWORD = "LibraryDemo123!";
 ```
 
-- [ ] **Step 4: Add Prisma singleton and idempotent seed**
+- [x] **Step 4: Add Prisma singleton, database test scripts, and idempotent seed**
 
-Export `prisma = new PrismaClient()` from `src/db/prisma.ts`. In `prisma/seed.ts`, hash `SEED_PASSWORD` with bcrypt cost 12 and upsert by `username`:
+After the real schema and Prisma configuration exist, add these backend scripts:
+
+```json
+{
+  "build": "prisma generate && tsc -p tsconfig.json",
+  "postinstall": "prisma generate",
+  "prisma:setup": "tsx scripts/setup-sqlite-db.ts file:./dev.db",
+  "prisma:migration:generate": "prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script --output prisma/migrations/0_init/migration.sql",
+  "test:db": "npm run prisma:generate && tsx scripts/setup-sqlite-db.ts file:./test.db",
+  "test": "npm run test:db && vitest run",
+  "test:watch": "npm run test:db && vitest"
+}
+```
+
+These `postinstall`, build, and test paths generate the Prisma client for a fresh checkout before TypeScript compilation or database-backed tests. `setup-sqlite-db.ts` resolves a relative SQLite URL from the backend directory, creates the database file without truncating it, and runs the local Prisma CLI through Node with a shell-free absolute URL. The tracked `0_init` SQL is produced by `prisma migrate diff`, not `migrate dev`.
+
+Create `backend/src/db/prisma.ts`:
+
+```ts
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaClient } from "../../generated/client.js";
+import { env } from "../config/env.js";
+
+const adapter = new PrismaBetterSqlite3({ url: env.DATABASE_URL });
+
+export const prisma = new PrismaClient({ adapter });
+```
+
+In `prisma/seed.ts`, hash `SEED_PASSWORD` with bcrypt cost 12 and upsert by `username`:
 
 ```ts
 const passwordHash = await hash(env.SEED_PASSWORD, 12);
@@ -306,24 +396,24 @@ await prisma.user.upsert({
 });
 ```
 
-- [ ] **Step 5: Generate and migrate a clean database**
+- [x] **Step 5: Generate tracked migration SQL and set up a clean database**
 
 Run:
 
 ```powershell
 Copy-Item backend/.env.example backend/.env
-npm run prisma:generate --workspace backend
-npm run prisma:migrate --workspace backend -- --name init
+npm run prisma:migration:generate --workspace backend
+npm run prisma:setup --workspace backend
 npm run prisma:seed --workspace backend
 npm test --workspace backend -- database.test.ts
 ```
 
-Expected: migration and seed succeed; persistence test PASS.
+Expected: `prisma/migrations/0_init/migration.sql` matches the schema, setup and seed succeed, and the persistence test PASSes.
 
-- [ ] **Step 6: Commit the data foundation**
+- [x] **Step 6: Commit the data foundation**
 
 ```powershell
-git add backend/.env.example backend/prisma backend/src/config backend/src/db backend/tests
+git add backend/.env.example backend/package.json backend/tsconfig.json backend/prisma backend/scripts backend/src/config backend/src/db backend/tests package-lock.json docs START-HERE.md
 git commit -m "feat: add persistent book library database"
 ```
 
@@ -351,7 +441,7 @@ Expected: `.env` and `dev.db` remain untracked/ignored.
 - Produces: `authenticate(req, res, next)` and `req.auth = { userId: number; username: string }`
 - Produces: `authRouter` serving `POST /login`
 
-- [ ] **Step 1: Write failing auth tests**
+- [x] **Step 1: Write failing auth tests**
 
 Create Supertest cases in `backend/tests/auth.test.ts` asserting:
 
@@ -388,16 +478,16 @@ app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
 
 Seed the reviewer with a bcrypt hash in `beforeAll` and delete test users/books in `afterAll`.
 
-- [ ] **Step 2: Run auth tests and confirm RED**
+- [x] **Step 2: Run auth tests and confirm RED**
 
-Run: `npm test --workspace backend -- auth.test.ts`  
+Run: `npm test --workspace backend -- auth.test.ts`
 Expected: FAIL because `app`, route, and token helpers do not exist.
 
-- [ ] **Step 3: Implement password and token helpers**
+- [x] **Step 3: Implement password and token helpers**
 
 Use `bcryptjs.compare`, `jsonwebtoken.sign`, and `jsonwebtoken.verify`; force algorithm `HS256`, issuer `personal-book-library`, audience `book-library-web`, and `expiresIn: "1h"`. Convert numeric user id to `sub: String(user.id)` and reject non-numeric `sub` during verification.
 
-- [ ] **Step 4: Implement login schema, service, and route**
+- [x] **Step 4: Implement login schema, service, and route**
 
 `LoginInputSchema` accepts trimmed username and non-empty password. `authenticateCredentials` looks up by username, returns `null` for both unknown user and password mismatch, and returns `{ id, username }` only on match. The route returns the same response for either invalid-credential case and includes:
 
@@ -414,7 +504,7 @@ authRouter.post("/login", async (req, res) => {
 });
 ```
 
-- [ ] **Step 5: Implement Bearer authentication middleware**
+- [x] **Step 5: Implement Bearer authentication middleware**
 
 Parse exactly two Authorization segments, require case-insensitive `Bearer`, verify the token, assign `req.auth`, and use this response for every credential failure:
 
@@ -424,7 +514,7 @@ res.status(401).json({ error: "Access denied: session credential missing or expi
 
 Add Express request declaration merging in `src/types/express.d.ts`.
 
-- [ ] **Step 6: Run focused tests and type-check**
+- [x] **Step 6: Run focused tests and type-check**
 
 Run:
 
@@ -435,7 +525,7 @@ npm run typecheck --workspace backend
 
 Expected: all auth cases PASS and type-check exits 0.
 
-- [ ] **Step 7: Commit authentication**
+- [x] **Step 7: Commit authentication**
 
 ```powershell
 git add backend/src/auth backend/src/modules/auth backend/src/middleware backend/src/types backend/tests/auth.test.ts
@@ -461,7 +551,7 @@ git commit -m "feat: authenticate reviewers with expiring JWTs"
 - Produces: protected `GET /api/books`, `POST /api/books`, `DELETE /api/books/:id`
 - Consumes: `authenticate` and `prisma` from Tasks 2–3
 
-- [ ] **Step 1: Write failing protected CRUD tests**
+- [x] **Step 1: Write failing protected CRUD tests**
 
 Create table-driven unauthorized tests for all three book routes and happy-path tests using a token from `/api/login`. Store the token in `let token: string` during `beforeAll`, then use `const authHeader = () => ({ Authorization: `Bearer ${token}` })`. Required assertions:
 
@@ -480,12 +570,12 @@ expect((await request(app).delete("/api/books/999999").set(authHeader())).status
 
 Also assert blank/over-limit fields and non-positive/non-integer ids return 400.
 
-- [ ] **Step 2: Run CRUD tests and confirm RED**
+- [x] **Step 2: Run CRUD tests and confirm RED**
 
-Run: `npm test --workspace backend -- books.test.ts`  
+Run: `npm test --workspace backend -- books.test.ts`
 Expected: FAIL with missing book modules/routes.
 
-- [ ] **Step 3: Implement book validation and service**
+- [x] **Step 3: Implement book validation and service**
 
 Use Zod transformed strings:
 
@@ -500,7 +590,7 @@ export const BookIdSchema = z.coerce.number().int().positive();
 
 `listBooks` uses `orderBy: { createdAt: "desc" }`; `deleteBook` uses `deleteMany({ where: { id } })` and returns `count === 1` so missing ids do not become unhandled Prisma exceptions.
 
-- [ ] **Step 4: Implement protected routes**
+- [x] **Step 4: Implement protected routes**
 
 Apply `authenticate` at router level and include the reference marker:
 
@@ -514,7 +604,7 @@ bookRouter.delete("/:id", ...);
 
 Return `200 { books }`, `201 { book }`, `204` without body, and `404 { error: "Book not found" }` according to the contract.
 
-- [ ] **Step 5: Compose Express app and server**
+- [x] **Step 5: Compose Express app and server**
 
 `app.ts` installs `cors({ origin: env.CLIENT_ORIGIN })`, `express.json({ limit: "16kb" })`, auth router, book router, 404 JSON fallback, then error handler. `server.ts` imports app, listens on `env.PORT`, and logs exactly:
 
@@ -524,7 +614,7 @@ console.log(`${SERVER_READY_MESSAGE} on port ${env.PORT}`);
 
 Handle Zod errors as 400 without stack; unexpected errors as 500 with `{ error: "Internal server error" }`. Import `SERVER_READY_MESSAGE` from the Task 1 file and append ` on port ${env.PORT}` when logging.
 
-- [ ] **Step 6: Run the entire backend gate**
+- [x] **Step 6: Run the entire backend gate**
 
 Run:
 
@@ -536,7 +626,7 @@ npm run build --workspace backend
 
 Expected: database, auth, and books tests PASS; type-check and build exit 0.
 
-- [ ] **Step 7: Commit the protected API**
+- [x] **Step 7: Commit the protected API**
 
 ```powershell
 git add backend/src backend/tests
@@ -566,7 +656,7 @@ git commit -m "feat: add protected book management API"
 - Produces: `useAuth(): { token, username, login, logout }`
 - Produces: protected `/books` and public `/login` routes
 
-- [ ] **Step 1: Write failing authentication UI tests**
+- [x] **Step 1: Write failing authentication UI tests**
 
 With MSW and a memory router, assert:
 
@@ -581,16 +671,16 @@ expect(await screen.findByRole("heading", { name: "คลังหนังส�
 
 Add cases for invalid credentials, unauthenticated `/books` redirect, and explicit logout clearing storage.
 
-- [ ] **Step 2: Run Login tests and confirm RED**
+- [x] **Step 2: Run Login tests and confirm RED**
 
-Run: `npm test --workspace frontend -- LoginPage.test.tsx`  
+Run: `npm test --workspace frontend -- LoginPage.test.tsx`
 Expected: FAIL because auth modules and page are absent.
 
-- [ ] **Step 3: Add typed transport with centralized unauthorized handling**
+- [x] **Step 3: Add typed transport with centralized unauthorized handling**
 
 Set `VITE_API_URL=http://localhost:4000/api` in `frontend/.env.example`. `apiRequest` reads `book-library-token`, attaches `Authorization: Bearer ...` when present, sets JSON content type only when a body exists, returns `undefined` for HTTP 204, and otherwise parses JSON. On 401 it clears both `book-library-token` and `book-library-username`, then dispatches a browser `book-library:unauthorized` event; other non-2xx responses throw an `ApiError` containing the server `{ error }` message.
 
-- [ ] **Step 4: Implement AuthProvider**
+- [x] **Step 4: Implement AuthProvider**
 
 Initialize token and username state synchronously from localStorage, persist both on `login`, clear both on `logout`, and subscribe/unsubscribe to the unauthorized event in `useEffect`. Include:
 
@@ -602,15 +692,15 @@ const USERNAME_KEY = "book-library-username";
 
 Do not decode the JWT in the browser as proof of validity; Backend 401 is authoritative.
 
-- [ ] **Step 5: Implement Login page and route guard**
+- [x] **Step 5: Implement Login page and route guard**
 
 Use controlled username/password state, `submitting`, and `error`. Disable submit while pending. `ProtectedRoute` redirects missing-token users to `/login` with route state message “กรุณาเข้าสู่ระบบก่อนใช้งาน”. After successful login navigate with `{ replace: true }` to `/books`.
 
-- [ ] **Step 6: Compose application routes**
+- [x] **Step 6: Compose application routes**
 
 `main.tsx` wraps `BrowserRouter` and `AuthProvider`. `App.tsx` maps `/login`, protected `/books`, and catch-all redirect. Use a temporary semantic `<h1>คลังหนังสือของฉัน</h1>` for the library route until Task 6.
 
-- [ ] **Step 7: Run frontend auth gate**
+- [x] **Step 7: Run frontend auth gate**
 
 Run:
 
@@ -621,7 +711,7 @@ npm run typecheck --workspace frontend
 
 Expected: auth tests PASS and type-check exits 0.
 
-- [ ] **Step 8: Commit frontend authentication**
+- [x] **Step 8: Commit frontend authentication**
 
 ```powershell
 git add frontend/.env.example frontend/src
@@ -644,10 +734,10 @@ git commit -m "feat: add guarded JWT login flow"
 
 **Interfaces:**
 - Produces: `listBooks(): Promise<Book[]>`, `createBook(input: BookInput): Promise<Book>`, `deleteBook(id: number): Promise<void>`
-- Produces: `BookForm({ onCreate, disabled })`, `BookList({ books, onDelete, deletingId })`, `BookSearch({ value, onChange, resultCount })`
+- Produces: `BookForm({ onCreate, disabled })`, `BookList({ books, onDelete, deletingIds: ReadonlySet<number> })`, `BookSearch({ value, onChange, resultCount })`
 - Consumes: `apiRequest`, `useAuth`, and protected `/books` route
 
-- [ ] **Step 1: Write failing library behavior tests**
+- [x] **Step 1: Write failing library behavior tests**
 
 Use MSW to test these visible behaviors separately:
 
@@ -666,12 +756,12 @@ expect(screen.getByLabelText("ชื่อหนังสือ")).toHaveFocus()
 
 Also assert delete updates immediately, failed mutation shows actionable error, empty state appears, and search matches title/author/category case-insensitively without changing the source array.
 
-- [ ] **Step 2: Run Library tests and confirm RED**
+- [x] **Step 2: Run Library tests and confirm RED**
 
-Run: `npm test --workspace frontend -- LibraryPage.test.tsx`  
+Run: `npm test --workspace frontend -- LibraryPage.test.tsx`
 Expected: FAIL because library modules and components are absent.
 
-- [ ] **Step 3: Implement typed books API**
+- [x] **Step 3: Implement typed books API**
 
 Define:
 
@@ -682,11 +772,11 @@ export type BookInput = Pick<Book, "title" | "author" | "category">;
 
 Map GET `{ books }`, POST `{ book }`, and DELETE 204 through `apiRequest` without duplicating token logic.
 
-- [ ] **Step 4: Implement focused presentational components**
+- [x] **Step 4: Implement focused presentational components**
 
 `BookForm` owns controlled fields and a title `useRef<HTMLInputElement>`. It awaits `onCreate`; only after success does it clear all fields and call `titleRef.current?.focus()`. `BookList` uses semantic list/article markup and accessible delete labels such as `ลบ Dune`. `BookSearch` displays `พบ {resultCount} เล่ม`.
 
-- [ ] **Step 5: Implement LibraryPage state and effects**
+- [x] **Step 5: Implement LibraryPage state and effects**
 
 Include the reference marker in `LibraryPage.tsx`:
 
@@ -697,13 +787,13 @@ const [books, setBooks] = useState<Book[]>([]);
 
 On mount, fetch once, set loading false in `finally`, and avoid updating after unmount. Use `useMemo` with `[books, searchTerm]` to filter. Use an action state (`"created" | "deleted" | null`) and an update `useEffect` with `[books, action]` to translate the latest mutation into “เพิ่มหนังสือแล้ว” or “ลบหนังสือแล้ว”; guard the initial empty action so initial load does not create a success notice.
 
-Create prepends the returned book. Delete disables only the active row, awaits API success, then filters by id. Network failures keep current data and set an actionable Thai error.
+Create prepends the returned book. Delete tracks pending ids and disables each active row, awaits API success, then filters by id. Network failures keep current data and set an actionable Thai error.
 
-- [ ] **Step 6: Add logout and replace the temporary route content**
+- [x] **Step 6: Add logout and replace the temporary route content**
 
 Render username and “ออกจากระบบ” in the library header. Logout clears auth and navigates to `/login` with replace. Update `App.tsx` to render `LibraryPage`.
 
-- [ ] **Step 7: Run hook and behavior tests**
+- [x] **Step 7: Run hook and behavior tests**
 
 Run:
 
@@ -715,7 +805,7 @@ npm run typecheck --workspace frontend
 
 Expected: all frontend tests PASS; the focus assertion proves `useRef`; filtered result tests prove `useMemo`; mutation notice tests prove the update effect.
 
-- [ ] **Step 8: Commit book management UI**
+- [x] **Step 8: Commit book management UI**
 
 ```powershell
 git add frontend/src
@@ -738,14 +828,14 @@ git commit -m "feat: add searchable personal library interface"
 - Produces: CSS variables `--archive-blue`, `--midnight`, `--paper`, `--checkout-red`, `--ledger-green`, `--rule-blue`
 - Produces: keyboard-visible focus, `aria-live` status, responsive layout at 360px+
 
-- [ ] **Step 1: Write failing accessibility assertions**
+- [x] **Step 1: Write failing accessibility assertions**
 
 Test that Login/Form/Search inputs have accessible labels, status message has `role="status"` and `aria-live="polite"`, errors have `role="alert"`, and every delete button has a book-specific accessible name.
 
-Run: `npm test --workspace frontend -- accessibility.test.tsx`  
+Run: `npm test --workspace frontend -- accessibility.test.tsx`
 Expected: FAIL for any missing semantic attributes.
 
-- [ ] **Step 2: Apply the approved design tokens**
+- [x] **Step 2: Apply the approved design tokens**
 
 Create CSS variables:
 
@@ -765,7 +855,7 @@ Create CSS variables:
 
 Use Georgia only for headings/book titles and `ui-monospace` for categories/counts. Implement the checkout-stamp result strip, disciplined 1px rules, 8px maximum radius, and one short success-notice transition.
 
-- [ ] **Step 3: Add responsive and reduced-motion rules**
+- [x] **Step 3: Add responsive and reduced-motion rules**
 
 At desktop, use a narrow form rail and flexible catalogue area; below 760px stack them. Preserve 44px touch targets, no horizontal overflow at 360px, and add:
 
@@ -776,7 +866,7 @@ At desktop, use a narrow form rail and flexible catalogue area; below 760px stac
 }
 ```
 
-- [ ] **Step 4: Fix semantic failures and run the frontend gate**
+- [x] **Step 4: Fix semantic failures and run the frontend gate**
 
 Run:
 
@@ -788,7 +878,7 @@ npm run build --workspace frontend
 
 Expected: accessibility and behavior tests PASS; production build exits 0.
 
-- [ ] **Step 5: Perform keyboard and viewport checks**
+- [x] **Step 5: Perform keyboard and viewport checks**
 
 Run `npm run dev`, then verify at 360×800 and 1440×900:
 
@@ -799,7 +889,7 @@ Run `npm run dev`, then verify at 360×800 and 1440×900:
 
 Expected: no inaccessible control, overlap, clipping, or horizontal scroll.
 
-- [ ] **Step 6: Commit presentation and accessibility**
+- [x] **Step 6: Commit presentation and accessibility**
 
 ```powershell
 git add frontend/src
@@ -827,18 +917,18 @@ git commit -m "style: polish accessible library experience"
 - Produces: reproducible setup and reviewer credentials
 - Consumes: final API contract and commands from Tasks 1–7
 
-- [ ] **Step 1: Build the Bruno happy path**
+- [x] **Step 1: Build the Bruno happy path**
 
 Set `baseUrl` to `http://localhost:4000/api`. `Login.bru` sends reviewer credentials and stores `res.body.token` to collection variable `token`. `Create.bru` sends the three book fields, uses `Bearer {{token}}`, and stores `res.body.book.id` as `bookId`. List and Delete use the same token; Delete uses `/books/{{bookId}}`.
 
 Each request includes a test block asserting its expected status and primary response shape. `Create without token.bru` omits Authorization and asserts status 401 plus exact error message.
 
-- [ ] **Step 2: Run every Bruno request in order**
+- [x] **Step 2: Run every Bruno request in order**
 
-Run the collection in this order: Login → List → Create → Delete → Create without token.  
+Run the collection in this order: Login → List → Create → Delete → Create without token.
 Expected statuses: `200, 200, 201, 204, 401` with no failed Bruno assertions.
 
-- [ ] **Step 3: Write reproducible README**
+- [x] **Step 3: Write reproducible README**
 
 Document, in order:
 
@@ -846,7 +936,7 @@ Document, in order:
 2. `npm install`.
 3. copying both `.env.example` files to `.env`.
 4. each backend environment variable and why it exists.
-5. `npm run prisma:migrate --workspace backend -- --name init` and `npm run prisma:seed --workspace backend`.
+5. the repository's tracked migration plus real `npm run prisma:setup --workspace backend` and `npm run prisma:seed --workspace backend` workflow.
 6. `npm run dev`, Backend/Frontend URLs, and server-ready log.
 7. reviewer username `reviewer` and password `LibraryDemo123!` as local demo defaults.
 8. test/typecheck/build commands.
@@ -855,11 +945,11 @@ Document, in order:
 
 State clearly that production users must replace demo credentials and JWT secret.
 
-- [ ] **Step 4: Write the personal reflection**
+- [x] **Step 4: Write the personal reflection**
 
 Create `REFLECTION.md` in first-person language, no more than 10 non-empty lines. It must name the genuinely hardest part encountered during implementation and explain why; verify it matches actual experience instead of copying generic prose.
 
-- [ ] **Step 5: Verify reference markers and prohibited files**
+- [x] **Step 5: Verify reference markers and prohibited files**
 
 Run:
 
@@ -871,12 +961,12 @@ git diff --check
 
 Expected: markers appear in principal backend API/auth and frontend library/auth files; `.env` and `*.db` are ignored; `git diff --check` prints nothing.
 
-- [ ] **Step 6: Rebuild from documented clean-state instructions**
+- [x] **Step 6: Rebuild from documented clean-state instructions**
 
-Use a fresh clone or temporary copy without `node_modules`, `.env`, and SQLite files, then execute README commands exactly.  
+Use a fresh clone or temporary copy without `node_modules`, `.env`, and SQLite files, then execute README commands exactly.
 Expected: install, migration, seed, dev startup, reviewer login, and API calls all work without undocumented steps.
 
-- [ ] **Step 7: Run final automated gates**
+- [x] **Step 7: Run final automated gates**
 
 Run:
 
@@ -904,7 +994,9 @@ Verify in browser and Bruno:
 
 Expected: every item passes; capture any failure as a new failing automated test before fixing it.
 
-- [ ] **Step 9: Update the handoff note and commit submission assets**
+Execution note (2026-07-19): Bruno and HTTP checks passed. The in-app browser verified login, loading, create/clear/refocus, search, delete, logout/route guard, long content, visible focus, 44px controls, and no overflow at 360×800 and 1440×900. Invalid/missing-token behavior is covered by Bruno and automated tests. This step remains unchecked only because browser policy forbids directly inspecting or editing localStorage, so the exact manual “remove token in DevTools” sub-step was not performed.
+
+- [x] **Step 9: Update the handoff note and commit submission assets**
 
 Update `START-HERE.md` latest handoff to state the real last test results and next action. Then run:
 

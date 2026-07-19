@@ -28,12 +28,16 @@
 
 ## บันทึกส่งต่อรอบล่าสุด
 
-- สถานะ: อนุมัติ design แล้ว; ยังไม่ได้เริ่ม implementation
-- ขั้นถัดไป: Task 1 — Workspace foundation and quality gates
-- ผลทดสอบล่าสุด: ยังไม่มี source code หรือ test suite
-- Blocker: ไม่มี
+- สถานะ: Tasks 1–8, independent task reviews และ whole-project code review เสร็จแล้ว; ไม่มี Critical/Important finding ค้าง
+- ขั้นถัดไป: เลือกวิธีเก็บ branch — merge, push/PR หรือเก็บ branch ไว้
+- ผลทดสอบล่าสุด: backend 60 tests และ frontend 37 tests ผ่าน; lint/typecheck/build ผ่าน; Bruno 5/5 และ clean-copy gates ผ่าน; browser checks ที่ 360×800/1440×900 ผ่าน
+- Blocker: เหลือ manual DevTools sub-step เดียว (ลบ localStorage token โดยตรง) ซึ่ง browser policy ไม่อนุญาต; logout/route guard และ missing/invalid token ผ่าน UI, Bruno และ automated tests แล้ว
 
 ## Definition of Done
+
+### Task 2 SQLite setup
+
+Prisma migration SQL is tracked at `backend/prisma/migrations/0_init/migration.sql`, generated from the schema with `prisma migrate diff`. For a clean checkout, copy `backend/.env.example` to `backend/.env`, then run `npm run prisma:setup --workspace backend` and `npm run prisma:seed --workspace backend`. The setup script creates the SQLite file without truncating an existing database and runs the local Prisma CLI with an absolute SQLite URL; `npm test --workspace backend` prepares an isolated test database the same way.
 
 งานยังไม่เสร็จจนกว่าจะครบทุกข้อ:
 

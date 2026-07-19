@@ -1,0 +1,13 @@
+node_modules/
+.env
+.env.*
+!.env.example
+*.db
+*.db-journal
+dist/
+coverage/
+frontend/.vite/
+backend/generated/
+*.log
+.DS_Store
+.superpowers/

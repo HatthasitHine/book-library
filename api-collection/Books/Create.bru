@@ -1,0 +1,44 @@
+meta {
+  name: Create book
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/books
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  content-type: application/json
+}
+
+body:json {
+  {
+    "title": "The Left Hand of Darkness",
+    "author": "Ursula K. Le Guin",
+    "category": "Science fiction"
+  }
+}
+
+script:post-response {
+  bru.setVar("bookId", res.body.book.id);
+}
+
+tests {
+  test("creates a normalized book and returns its id", function () {
+    expect(res.status).to.equal(201);
+    expect(res.body.book).to.include({
+      title: "The Left Hand of Darkness",
+      author: "Ursula K. Le Guin",
+      category: "Science fiction"
+    });
+    expect(res.body.book.id).to.be.a("number");
+    expect(res.body.book.createdAt).to.be.a("string");
+  });
+}
