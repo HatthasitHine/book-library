@@ -28,10 +28,10 @@
 
 ## บันทึกส่งต่อรอบล่าสุด
 
-- สถานะ: Task 7 ผ่าน implementation และ independent task review แล้ว
-- ขั้นถัดไป: Task 8 — Bruno collection, documentation, reflection, and final verification
-- ผลทดสอบล่าสุด: backend 52 tests และ frontend 28 tests ผ่าน; root typecheck/build ผ่าน
-- Blocker: browser runtime ไม่พร้อมใช้งาน จึงย้าย live visual/keyboard checklist ไปตรวจใน Task 8
+- สถานะ: Task 8 implementation และ reproducible clean-checkout verification เสร็จแล้ว; รอ independent task review
+- ขั้นถัดไป: independent review จาก agent ใหม่ แล้วจึงทำ final branch review/ส่งมอบ
+- ผลทดสอบล่าสุด: backend 54 tests และ frontend 28 tests ผ่าน; root typecheck/build ผ่าน; Bruno 5/5 requests และ clean-copy gates ผ่าน
+- Blocker: browser runtime รายงานว่าไม่พร้อมใช้งาน จึงยังไม่อ้างว่า visual/keyboard checklist ที่ mobile/desktop ผ่าน; ต้องตรวจด้วย browser จริงก่อน production/grading
 
 ## Definition of Done
 

@@ -917,18 +917,18 @@ git commit -m "style: polish accessible library experience"
 - Produces: reproducible setup and reviewer credentials
 - Consumes: final API contract and commands from Tasks 1–7
 
-- [ ] **Step 1: Build the Bruno happy path**
+- [x] **Step 1: Build the Bruno happy path**
 
 Set `baseUrl` to `http://localhost:4000/api`. `Login.bru` sends reviewer credentials and stores `res.body.token` to collection variable `token`. `Create.bru` sends the three book fields, uses `Bearer {{token}}`, and stores `res.body.book.id` as `bookId`. List and Delete use the same token; Delete uses `/books/{{bookId}}`.
 
 Each request includes a test block asserting its expected status and primary response shape. `Create without token.bru` omits Authorization and asserts status 401 plus exact error message.
 
-- [ ] **Step 2: Run every Bruno request in order**
+- [x] **Step 2: Run every Bruno request in order**
 
 Run the collection in this order: Login → List → Create → Delete → Create without token.
 Expected statuses: `200, 200, 201, 204, 401` with no failed Bruno assertions.
 
-- [ ] **Step 3: Write reproducible README**
+- [x] **Step 3: Write reproducible README**
 
 Document, in order:
 
@@ -936,7 +936,7 @@ Document, in order:
 2. `npm install`.
 3. copying both `.env.example` files to `.env`.
 4. each backend environment variable and why it exists.
-5. `npm run prisma:migrate --workspace backend -- --name init` and `npm run prisma:seed --workspace backend`.
+5. the repository's tracked migration plus real `npm run prisma:setup --workspace backend` and `npm run prisma:seed --workspace backend` workflow.
 6. `npm run dev`, Backend/Frontend URLs, and server-ready log.
 7. reviewer username `reviewer` and password `LibraryDemo123!` as local demo defaults.
 8. test/typecheck/build commands.
@@ -945,11 +945,11 @@ Document, in order:
 
 State clearly that production users must replace demo credentials and JWT secret.
 
-- [ ] **Step 4: Write the personal reflection**
+- [x] **Step 4: Write the personal reflection**
 
 Create `REFLECTION.md` in first-person language, no more than 10 non-empty lines. It must name the genuinely hardest part encountered during implementation and explain why; verify it matches actual experience instead of copying generic prose.
 
-- [ ] **Step 5: Verify reference markers and prohibited files**
+- [x] **Step 5: Verify reference markers and prohibited files**
 
 Run:
 
@@ -961,12 +961,12 @@ git diff --check
 
 Expected: markers appear in principal backend API/auth and frontend library/auth files; `.env` and `*.db` are ignored; `git diff --check` prints nothing.
 
-- [ ] **Step 6: Rebuild from documented clean-state instructions**
+- [x] **Step 6: Rebuild from documented clean-state instructions**
 
 Use a fresh clone or temporary copy without `node_modules`, `.env`, and SQLite files, then execute README commands exactly.
 Expected: install, migration, seed, dev startup, reviewer login, and API calls all work without undocumented steps.
 
-- [ ] **Step 7: Run final automated gates**
+- [x] **Step 7: Run final automated gates**
 
 Run:
 
@@ -994,7 +994,9 @@ Verify in browser and Bruno:
 
 Expected: every item passes; capture any failure as a new failing automated test before fixing it.
 
-- [ ] **Step 9: Update the handoff note and commit submission assets**
+Execution note (2026-07-19): Bruno, automated behavior tests, and HTTP runtime checks passed, but no browser runtime was available. This step intentionally remains unchecked until the visual and keyboard checks are executed in a real browser at mobile and desktop widths.
+
+- [x] **Step 9: Update the handoff note and commit submission assets**
 
 Update `START-HERE.md` latest handoff to state the real last test results and next action. Then run:
 
