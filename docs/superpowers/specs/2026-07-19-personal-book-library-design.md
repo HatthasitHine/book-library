@@ -25,6 +25,8 @@ Browser
 
 ## 3. Repository structure
 
+Prisma 7 keeps `DATABASE_URL` and the seed command in `backend/prisma.config.ts`; `schema.prisma` declares only the SQLite provider. Its `prisma-client` generator writes an ignored client to `backend/generated/`, and the runtime client uses `@prisma/adapter-better-sqlite3`.
+
 ```text
 .
 ├─ START-HERE.md

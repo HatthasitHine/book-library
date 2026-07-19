@@ -30,7 +30,7 @@
 |---|---|---|
 | Workspace | `package.json`, `.gitignore`, `START-HERE.md` | Shared scripts, ignored artifacts, daily workflow |
 | Backend boot | `backend/src/app.ts`, `backend/src/server.ts`, `backend/src/config/env.ts` | Express composition, listener, validated configuration |
-| Data | `backend/prisma/schema.prisma`, `backend/prisma/seed.ts`, `backend/prisma.config.ts`, `backend/src/db/prisma.ts` | User/Book schema, reviewer user, Prisma lifecycle |
+| Data | `backend/prisma/schema.prisma`, `backend/prisma/seed.ts`, `backend/prisma.config.ts`, `backend/generated/`, `backend/src/db/prisma.ts` | User/Book schema, generated Prisma client, reviewer user, Prisma lifecycle |
 | Auth | `backend/src/modules/auth/*`, `backend/src/auth/*`, `backend/src/middleware/authenticate.ts` | Login, password comparison, JWT issue/verify, route protection |
 | Books | `backend/src/modules/books/*` | Validated list/create/delete behavior |
 | Frontend transport | `frontend/src/api/*` | Typed contracts, Bearer header, centralized 401 handling |
@@ -118,6 +118,7 @@ node_modules/
 dist/
 coverage/
 frontend/.vite/
+backend/generated/
 *.log
 .DS_Store
 ```
@@ -217,12 +218,14 @@ Expected: clean worktree after commit.
 - Create: `backend/prisma/schema.prisma`
 - Create: `backend/prisma/seed.ts`
 - Create: `backend/prisma.config.ts`
+- Generate: `backend/generated/` Prisma client output
 - Create: `backend/tests/setup.ts`
 - Create: `backend/tests/database.test.ts`
 
 **Interfaces:**
 - Produces: `env` with `PORT`, `DATABASE_URL`, `JWT_SECRET`, `CLIENT_ORIGIN`, `SEED_USERNAME`, `SEED_PASSWORD`
-- Produces: singleton `prisma: PrismaClient`
+- Produces: generated Prisma client in `backend/generated/`
+- Produces: singleton `prisma: PrismaClient` using the Prisma 7 SQLite adapter
 - Produces: Prisma models `User` and `Book`
 
 - [ ] **Step 1: Write the failing persistence test**
@@ -251,7 +254,16 @@ describe("Book persistence", () => {
 Run: `npm test --workspace backend -- database.test.ts`
 Expected: FAIL because `src/db/prisma.ts` and Prisma model are not defined.
 
-- [ ] **Step 3: Define environment, Prisma 7 configuration, and schema**
+- [ ] **Step 3: Install Prisma 7 SQLite dependencies and define configuration**
+
+Run:
+
+```powershell
+npm install --workspace backend @prisma/adapter-better-sqlite3 better-sqlite3
+npm install -D --workspace backend @types/better-sqlite3
+```
+
+Expected: the backend can instantiate Prisma's SQLite adapter with type definitions available to TypeScript.
 
 Create `backend/.env.example`:
 
@@ -279,9 +291,53 @@ const EnvSchema = z.object({
 export const env = EnvSchema.parse(process.env);
 ```
 
-Define `User` and `Book` in `schema.prisma` using the fields and limits documented in the design spec; use the SQLite provider only.
+Create `backend/prisma/schema.prisma`:
 
-Prisma 7 note: `prisma.config.ts` owns the datasource URL and seed command. The schema datasource contains the provider only; use the `prisma-client` generator with an explicit `../generated` output. Runtime SQLite uses `@prisma/adapter-better-sqlite3` with `better-sqlite3`.
+```prisma
+datasource db {
+  provider = "sqlite"
+}
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated"
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+model Book {
+  id        Int      @id @default(autoincrement())
+  title     String
+  author    String
+  category  String
+  createdAt DateTime @default(now())
+}
+```
+
+Create `backend/prisma.config.ts`:
+
+```ts
+import "dotenv/config";
+import { defineConfig, env } from "prisma/config";
+
+export default defineConfig({
+  schema: "prisma/schema.prisma",
+  migrations: {
+    path: "prisma/migrations",
+    seed: "tsx prisma/seed.ts",
+  },
+  datasource: {
+    url: env("DATABASE_URL"),
+  },
+});
+```
+
+Prisma 7 note: `prisma.config.ts` owns the datasource URL and seed command; the schema datasource contains the provider only. The `prisma-client` generator writes the client to `backend/generated/`, which stays ignored. Runtime SQLite uses `@prisma/adapter-better-sqlite3` with `better-sqlite3`.
 
 Create `backend/tests/setup.ts` so test imports always receive deterministic local-only configuration:
 
@@ -300,13 +356,29 @@ After the real schema and Prisma configuration exist, add these backend scripts:
 
 ```json
 {
-  "test:db": "cross-env DATABASE_URL=file:./test.db prisma db push",
+  "build": "prisma generate && tsc -p tsconfig.json",
+  "postinstall": "prisma generate",
+  "test:db": "cross-env DATABASE_URL=file:./test.db prisma generate && cross-env DATABASE_URL=file:./test.db prisma db push",
   "test": "npm run test:db && vitest run",
   "test:watch": "npm run test:db && vitest"
 }
 ```
 
-Export `prisma = new PrismaClient()` from `src/db/prisma.ts`. In `prisma/seed.ts`, hash `SEED_PASSWORD` with bcrypt cost 12 and upsert by `username`:
+These `postinstall`, build, and test paths generate the Prisma client for a fresh checkout before TypeScript compilation or database-backed tests.
+
+Create `backend/src/db/prisma.ts`:
+
+```ts
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaClient } from "../../generated/client.js";
+import { env } from "../config/env.js";
+
+const adapter = new PrismaBetterSqlite3({ url: env.DATABASE_URL });
+
+export const prisma = new PrismaClient({ adapter });
+```
+
+In `prisma/seed.ts`, hash `SEED_PASSWORD` with bcrypt cost 12 and upsert by `username`:
 
 ```ts
 const passwordHash = await hash(env.SEED_PASSWORD, 12);
