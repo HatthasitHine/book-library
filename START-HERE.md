@@ -1,0 +1,47 @@
+# เริ่มงานที่นี่ — Personal Book Library
+
+ไฟล์นี้คือ checklist สำหรับอ่านทุกครั้งก่อนเริ่มทำงาน เพื่อรักษาขอบเขต ลำดับ และคุณภาพของงาน
+
+## เอกสารหลัก
+
+1. อ่าน [Design specification](docs/superpowers/specs/2026-07-19-personal-book-library-design.md) เมื่อจำเป็นต้องทบทวนว่า "ระบบต้องทำงานอย่างไร"
+2. ทำตาม [Implementation plan](docs/superpowers/plans/2026-07-19-personal-book-library.md) ทีละ task และทำเครื่องหมาย checkbox หลังตรวจสอบแล้วเท่านั้น
+3. ยึดโจทย์ต้นฉบับเป็นข้อกำหนดสูงสุด หากเอกสารขัดกับโจทย์ให้หยุดและแก้เอกสารก่อนแก้โค้ด
+
+## พิธีเริ่มงานทุกครั้ง
+
+- [ ] รัน `git status --short --branch` และตรวจว่าอยู่ branch ที่ถูกต้อง
+- [ ] เปิด implementation plan แล้วหาบรรทัดแรกที่ยังเป็น `- [ ]`
+- [ ] อ่านทั้ง task ปัจจุบัน รวมถึง `Files`, `Interfaces` และผลลัพธ์ที่คาดหวัง
+- [ ] ทำเพียงหนึ่ง red-green-refactor cycle ต่อครั้ง: test fail → implementation → test pass
+- [ ] ห้ามข้าม test ที่ fail และห้ามรวมหลาย task ก่อน commit
+- [ ] ไม่ใส่ secret จริงลง Git; ใช้ `.env` ในเครื่องและ commit เฉพาะ `.env.example`
+- [ ] ตรวจว่าคอมเมนต์ `// ref: 37aa88161f` ยังอยู่ในไฟล์หลักตามโจทย์
+
+## พิธีจบงานทุกครั้ง
+
+- [ ] รัน test และ type-check ที่เกี่ยวข้องกับไฟล์ซึ่งแก้
+- [ ] ตรวจ `git diff --check` และ `git diff --stat`
+- [ ] อัปเดต checkbox ใน implementation plan เฉพาะขั้นที่ผ่านจริง
+- [ ] commit งานที่ทดสอบผ่านด้วยข้อความตาม plan
+- [ ] เขียนบันทึกสั้น ๆ ด้านล่าง: งานล่าสุด, ผลทดสอบ, ขั้นถัดไป และ blocker
+
+## บันทึกส่งต่อรอบล่าสุด
+
+- สถานะ: อนุมัติ design แล้ว; ยังไม่ได้เริ่ม implementation
+- ขั้นถัดไป: Task 1 — Workspace foundation and quality gates
+- ผลทดสอบล่าสุด: ยังไม่มี source code หรือ test suite
+- Blocker: ไม่มี
+
+## Definition of Done
+
+งานยังไม่เสร็จจนกว่าจะครบทุกข้อ:
+
+- Backend เชื่อม SQLite จริงและ API contract ผ่าน automated tests
+- ทุก `/api/books` endpoint ปฏิเสธ request ที่ไม่มี/หมดอายุ token ด้วย HTTP 401
+- Frontend บังคับ Login, เก็บ JWT, แนบ Bearer token และ logout เมื่อพบ 401
+- เพิ่ม ค้นหา และลบหนังสือได้; loading/error/empty/success states ทำงาน
+- input ชื่อหนังสือถูกล้างและ focus หลังเพิ่มสำเร็จ
+- Bruno collection ครบ Login, GET, POST, DELETE และกรณี 401
+- `README.md`, `.env.example`, Prisma migration/seed และ `REFLECTION.md` พร้อมตรวจ
+- มี commit history ตามลำดับจริงและไม่มี secret หรือ database file ถูก commit
