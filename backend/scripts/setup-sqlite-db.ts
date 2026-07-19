@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { mkdir, open } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export function resolveSqliteUrl(databaseUrl: string, backendDirectory: string): string {
@@ -9,12 +9,20 @@ export function resolveSqliteUrl(databaseUrl: string, backendDirectory: string):
     throw new Error("DATABASE_URL must use the SQLite file: scheme");
   }
 
+  const backendRoot = resolve(backendDirectory);
   const sqlitePath = databaseUrl.slice("file:".length).replaceAll("\\", "/");
-  if (/^(?:[A-Za-z]:\/|\/)/.test(sqlitePath)) {
-    return `file:${sqlitePath}`;
+  const databaseFilePath = resolve(backendRoot, sqlitePath);
+  const relativePath = relative(backendRoot, databaseFilePath);
+  if (
+    relativePath === "" ||
+    relativePath === ".." ||
+    relativePath.startsWith(`..${sep}`) ||
+    isAbsolute(relativePath)
+  ) {
+    throw new Error("SQLite database path must stay within the backend directory");
   }
 
-  return `file:${resolve(backendDirectory, sqlitePath).replaceAll("\\", "/")}`;
+  return `file:${databaseFilePath.replaceAll("\\", "/")}`;
 }
 
 export async function ensureSqliteDatabaseFile(databaseUrl: string, backendDirectory: string): Promise<string> {
