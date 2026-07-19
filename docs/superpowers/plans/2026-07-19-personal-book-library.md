@@ -828,14 +828,14 @@ git commit -m "feat: add searchable personal library interface"
 - Produces: CSS variables `--archive-blue`, `--midnight`, `--paper`, `--checkout-red`, `--ledger-green`, `--rule-blue`
 - Produces: keyboard-visible focus, `aria-live` status, responsive layout at 360px+
 
-- [ ] **Step 1: Write failing accessibility assertions**
+- [x] **Step 1: Write failing accessibility assertions**
 
 Test that Login/Form/Search inputs have accessible labels, status message has `role="status"` and `aria-live="polite"`, errors have `role="alert"`, and every delete button has a book-specific accessible name.
 
 Run: `npm test --workspace frontend -- accessibility.test.tsx`
 Expected: FAIL for any missing semantic attributes.
 
-- [ ] **Step 2: Apply the approved design tokens**
+- [x] **Step 2: Apply the approved design tokens**
 
 Create CSS variables:
 
@@ -855,7 +855,7 @@ Create CSS variables:
 
 Use Georgia only for headings/book titles and `ui-monospace` for categories/counts. Implement the checkout-stamp result strip, disciplined 1px rules, 8px maximum radius, and one short success-notice transition.
 
-- [ ] **Step 3: Add responsive and reduced-motion rules**
+- [x] **Step 3: Add responsive and reduced-motion rules**
 
 At desktop, use a narrow form rail and flexible catalogue area; below 760px stack them. Preserve 44px touch targets, no horizontal overflow at 360px, and add:
 
@@ -866,7 +866,7 @@ At desktop, use a narrow form rail and flexible catalogue area; below 760px stac
 }
 ```
 
-- [ ] **Step 4: Fix semantic failures and run the frontend gate**
+- [x] **Step 4: Fix semantic failures and run the frontend gate**
 
 Run:
 
@@ -889,7 +889,7 @@ Run `npm run dev`, then verify at 360×800 and 1440×900:
 
 Expected: no inaccessible control, overlap, clipping, or horizontal scroll.
 
-- [ ] **Step 6: Commit presentation and accessibility**
+- [x] **Step 6: Commit presentation and accessibility**
 
 ```powershell
 git add frontend/src
