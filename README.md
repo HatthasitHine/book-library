@@ -1,5 +1,7 @@
 # Personal Book Library
 
+[ภาษาไทย](README.th.md) | English
+
 A full-stack personal book library with a React/Vite interface, an Express API, persistent SQLite storage through Prisma, and one-hour JWT authentication.
 
 ## Prerequisites and layout
@@ -110,6 +112,6 @@ Expected status sequence: `200, 200, 201, 204, 401`, with all Bruno tests passin
 
 Every `/api/books` route requires `Authorization: Bearer <token>`. A missing, malformed, invalid, or expired token returns HTTP `401` with `{ "error": "Access denied: session credential missing or expired" }`. The frontend centrally clears its saved token and returns to Login after any API `401`.
 
-## Residual browser review
+## Browser verification
 
-Automated React tests cover the guarded route, login persistence, loading/empty/error states, create focus and form clearing, search across all fields, optimistic mutation behavior, and central `401` logout. Before production or grading, also perform a real-browser keyboard and visual pass at mobile and desktop widths; this is intentionally not claimed by the automated gates.
+Automated React tests cover the guarded route, login persistence, loading/empty/error states, create focus and form clearing, search across all fields, optimistic mutation behavior, and central `401` logout. A real-browser pass also verified the primary flow, visible keyboard focus, long content, 44 px controls, and overflow-free layouts at 360×800 and 1440×900. The exact manual DevTools action of deleting the localStorage token was not performed; missing/invalid-token behavior is covered by automated tests, Bruno, HTTP checks, and the UI logout/route guard.
