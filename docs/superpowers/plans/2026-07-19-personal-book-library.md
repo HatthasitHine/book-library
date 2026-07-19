@@ -218,17 +218,22 @@ Expected: clean worktree after commit.
 - Create: `backend/prisma/schema.prisma`
 - Create: `backend/prisma/seed.ts`
 - Create: `backend/prisma.config.ts`
+- Create: `backend/prisma/migrations/0_init/migration.sql`
+- Create: `backend/prisma/migrations/migration_lock.toml`
+- Create: `backend/scripts/setup-sqlite-db.ts`
 - Generate: `backend/generated/` Prisma client output
 - Create: `backend/tests/setup.ts`
 - Create: `backend/tests/database.test.ts`
+- Create: `backend/tests/sqlite-db.test.ts`
 
 **Interfaces:**
 - Produces: `env` with `PORT`, `DATABASE_URL`, `JWT_SECRET`, `CLIENT_ORIGIN`, `SEED_USERNAME`, `SEED_PASSWORD`
 - Produces: generated Prisma client in `backend/generated/`
 - Produces: singleton `prisma: PrismaClient` using the Prisma 7 SQLite adapter
 - Produces: Prisma models `User` and `Book`
+- Produces: tracked initial migration SQL plus portable local/test SQLite setup
 
-- [ ] **Step 1: Write the failing persistence test**
+- [x] **Step 1: Write the failing persistence test**
 
 Create `backend/tests/database.test.ts`:
 
@@ -249,12 +254,12 @@ describe("Book persistence", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and observe the expected failure**
+- [x] **Step 2: Run the test and observe the expected failure**
 
 Run: `npm test --workspace backend -- database.test.ts`
 Expected: FAIL because `src/db/prisma.ts` and Prisma model are not defined.
 
-- [ ] **Step 3: Install Prisma 7 SQLite dependencies and define configuration**
+- [x] **Step 3: Install Prisma 7 SQLite dependencies and define configuration**
 
 Run:
 
@@ -350,7 +355,7 @@ process.env.SEED_USERNAME = "reviewer";
 process.env.SEED_PASSWORD = "LibraryDemo123!";
 ```
 
-- [ ] **Step 4: Add Prisma singleton, database test scripts, and idempotent seed**
+- [x] **Step 4: Add Prisma singleton, database test scripts, and idempotent seed**
 
 After the real schema and Prisma configuration exist, add these backend scripts:
 
@@ -358,13 +363,15 @@ After the real schema and Prisma configuration exist, add these backend scripts:
 {
   "build": "prisma generate && tsc -p tsconfig.json",
   "postinstall": "prisma generate",
-  "test:db": "cross-env DATABASE_URL=file:./test.db prisma generate && cross-env DATABASE_URL=file:./test.db prisma db push",
+  "prisma:setup": "tsx scripts/setup-sqlite-db.ts file:./dev.db",
+  "prisma:migration:generate": "prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script --output prisma/migrations/0_init/migration.sql",
+  "test:db": "npm run prisma:generate && tsx scripts/setup-sqlite-db.ts file:./test.db",
   "test": "npm run test:db && vitest run",
   "test:watch": "npm run test:db && vitest"
 }
 ```
 
-These `postinstall`, build, and test paths generate the Prisma client for a fresh checkout before TypeScript compilation or database-backed tests.
+These `postinstall`, build, and test paths generate the Prisma client for a fresh checkout before TypeScript compilation or database-backed tests. `setup-sqlite-db.ts` resolves a relative SQLite URL from the backend directory, creates the database file without truncating it, and runs the local Prisma CLI through Node with a shell-free absolute URL. The tracked `0_init` SQL is produced by `prisma migrate diff`, not `migrate dev`.
 
 Create `backend/src/db/prisma.ts`:
 
@@ -389,24 +396,24 @@ await prisma.user.upsert({
 });
 ```
 
-- [ ] **Step 5: Generate and migrate a clean database**
+- [x] **Step 5: Generate tracked migration SQL and set up a clean database**
 
 Run:
 
 ```powershell
 Copy-Item backend/.env.example backend/.env
-npm run prisma:generate --workspace backend
-npm run prisma:migrate --workspace backend -- --name init
+npm run prisma:migration:generate --workspace backend
+npm run prisma:setup --workspace backend
 npm run prisma:seed --workspace backend
 npm test --workspace backend -- database.test.ts
 ```
 
-Expected: migration and seed succeed; persistence test PASS.
+Expected: `prisma/migrations/0_init/migration.sql` matches the schema, setup and seed succeed, and the persistence test PASSes.
 
-- [ ] **Step 6: Commit the data foundation**
+- [x] **Step 6: Commit the data foundation**
 
 ```powershell
-git add backend/.env.example backend/prisma backend/src/config backend/src/db backend/tests
+git add backend/.env.example backend/package.json backend/tsconfig.json backend/prisma backend/scripts backend/src/config backend/src/db backend/tests package-lock.json docs START-HERE.md
 git commit -m "feat: add persistent book library database"
 ```
 

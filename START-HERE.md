@@ -35,6 +35,10 @@
 
 ## Definition of Done
 
+### Task 2 SQLite setup
+
+Prisma migration SQL is tracked at `backend/prisma/migrations/0_init/migration.sql`, generated from the schema with `prisma migrate diff`. For a clean checkout, copy `backend/.env.example` to `backend/.env`, then run `npm run prisma:setup --workspace backend` and `npm run prisma:seed --workspace backend`. The setup script creates the SQLite file without truncating an existing database and runs the local Prisma CLI with an absolute SQLite URL; `npm test --workspace backend` prepares an isolated test database the same way.
+
 งานยังไม่เสร็จจนกว่าจะครบทุกข้อ:
 
 - Backend เชื่อม SQLite จริงและ API contract ผ่าน automated tests
