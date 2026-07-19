@@ -28,9 +28,9 @@
 
 ## บันทึกส่งต่อรอบล่าสุด
 
-- สถานะ: Task 2 ผ่าน implementation และ task review แล้ว
-- ขั้นถัดไป: Task 3 — JWT login and authentication middleware
-- ผลทดสอบล่าสุด: backend 10 tests ผ่าน; root test, typecheck และ build ผ่าน
+- สถานะ: Task 3 ผ่าน implementation และ task review แล้ว
+- ขั้นถัดไป: Task 4 — Express app and protected book API
+- ผลทดสอบล่าสุด: focused auth 23 tests และ backend รวม 33 tests ผ่าน; root typecheck/build ผ่าน
 - Blocker: ไม่มี
 
 ## Definition of Done
