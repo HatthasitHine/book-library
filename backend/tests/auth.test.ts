@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import { randomUUID } from "node:crypto";
 import express, { type NextFunction, type Request, type Response } from "express";
 import jwt from "jsonwebtoken";
 import request from "supertest";
@@ -11,9 +12,11 @@ import { authenticate } from "../src/middleware/authenticate.js";
 import { authRouter } from "../src/modules/auth/auth.routes.js";
 
 const reviewer = {
-  username: "reviewer",
+  username: `auth-route-${randomUUID()}`,
   password: "LibraryDemo123!",
 };
+const absentUsername = `missing-${randomUUID()}`;
+let reviewerId: number | undefined;
 
 const app = express();
 app.use(express.json());
@@ -31,16 +34,16 @@ app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
 
 beforeAll(async () => {
   const passwordHash = await bcrypt.hash(reviewer.password, 10);
-  await prisma.user.upsert({
-    where: { username: reviewer.username },
-    update: { passwordHash },
-    create: { username: reviewer.username, passwordHash },
+  const user = await prisma.user.create({
+    data: { username: reviewer.username, passwordHash },
   });
+  reviewerId = user.id;
 });
 
 afterAll(async () => {
-  await prisma.book.deleteMany();
-  await prisma.user.deleteMany({ where: { username: reviewer.username } });
+  if (reviewerId !== undefined) {
+    await prisma.user.deleteMany({ where: { id: reviewerId, username: reviewer.username } });
+  }
 });
 
 describe("POST /api/login", () => {
@@ -60,7 +63,7 @@ describe("POST /api/login", () => {
 
   it.each([
     { username: reviewer.username, password: "wrong-password" },
-    { username: "missing", password: reviewer.password },
+    { username: absentUsername, password: reviewer.password },
   ])("rejects invalid credentials without revealing which field failed", async (credentials) => {
     const response = await request(app).post("/api/login").send(credentials);
 
