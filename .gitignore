@@ -11,3 +11,4 @@ backend/generated/
 *.log
 .DS_Store
 .superpowers/
+/docs/superpowers/

@@ -4,8 +4,8 @@
 
 ## เอกสารหลัก
 
-1. อ่าน [Design specification](docs/superpowers/specs/2026-07-19-personal-book-library-design.md) เมื่อจำเป็นต้องทบทวนว่า "ระบบต้องทำงานอย่างไร"
-2. ทำตาม [Implementation plan](docs/superpowers/plans/2026-07-19-personal-book-library.md) ทีละ task และทำเครื่องหมาย checkbox หลังตรวจสอบแล้วเท่านั้น
+1. อ่าน [README ภาษาไทย](README.th.md) หรือ [README ภาษาอังกฤษ](README.md) เมื่อต้องการทบทวนการติดตั้ง การใช้งาน และ API
+2. ใช้ source code และ automated tests ใน `backend/` และ `frontend/` เป็นหลักฐานพฤติกรรมของระบบ
 3. ยึดโจทย์ต้นฉบับเป็นข้อกำหนดสูงสุด หากเอกสารขัดกับโจทย์ให้หยุดและแก้เอกสารก่อนแก้โค้ด
 
 ## พิธีเริ่มงานทุกครั้ง
