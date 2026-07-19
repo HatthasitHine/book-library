@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { spawn } from "node:child_process";
 import { mkdir, open, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -11,6 +12,18 @@ function pathsAreEqual(left: string, right: string): boolean {
   return process.platform === "win32"
     ? normalizedLeft.toLowerCase() === normalizedRight.toLowerCase()
     : normalizedLeft === normalizedRight;
+}
+
+export function resolveSetupDatabaseUrl(
+  explicitDatabaseUrl: string | undefined,
+  configuredDatabaseUrl: string | undefined,
+): string {
+  const databaseUrl = explicitDatabaseUrl ?? configuredDatabaseUrl;
+  if (!databaseUrl) {
+    throw new Error("DATABASE_URL must be set when no explicit test database URL is provided");
+  }
+
+  return databaseUrl;
 }
 
 export function resolveSqliteUrl(databaseUrl: string, backendDirectory: string): string {
@@ -88,10 +101,9 @@ async function runPrismaDbPush(databaseUrl: string, options: { reset?: boolean }
 
 const invokedScript = process.argv[1] && resolve(process.argv[1]);
 if (invokedScript === fileURLToPath(import.meta.url)) {
-  const databaseUrl = process.argv[2];
-  if (!databaseUrl) {
-    throw new Error("Usage: tsx scripts/setup-sqlite-db.ts <file:database-url>");
-  }
+  const arguments_ = process.argv.slice(2);
+  const explicitDatabaseUrl = arguments_.find((argument) => !argument.startsWith("--"));
+  const databaseUrl = resolveSetupDatabaseUrl(explicitDatabaseUrl, process.env.DATABASE_URL);
 
-  process.exitCode = await runPrismaDbPush(databaseUrl, { reset: process.argv.slice(3).includes("--reset") });
+  process.exitCode = await runPrismaDbPush(databaseUrl, { reset: arguments_.includes("--reset") });
 }

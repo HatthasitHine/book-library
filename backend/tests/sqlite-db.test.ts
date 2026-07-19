@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildDbPushCommand,
   ensureSqliteDatabaseFile,
+  resolveSetupDatabaseUrl,
   resolveSqliteUrl,
 } from "../scripts/setup-sqlite-db.js";
 
@@ -13,6 +14,35 @@ const backendDirectory = resolve("backend");
 const localPrismaCli = createRequire(import.meta.url).resolve("prisma/build/index.js");
 
 describe("SQLite database setup command", () => {
+  it("uses a custom configured URL when normal setup has no explicit test URL", () => {
+    expect(resolveSetupDatabaseUrl(undefined, "file:./custom-library.db")).toBe(
+      "file:./custom-library.db",
+    );
+  });
+
+  it("keeps the exact explicit test URL separate from a configured development URL", () => {
+    expect(resolveSetupDatabaseUrl("file:./test.db", "file:./custom-library.db")).toBe(
+      "file:./test.db",
+    );
+  });
+
+  it("requires DATABASE_URL when setup receives no explicit test URL", () => {
+    expect(() => resolveSetupDatabaseUrl(undefined, undefined)).toThrow(
+      "DATABASE_URL must be set",
+    );
+  });
+
+  it("uses environment configuration for normal setup and an exact test URL for reset", async () => {
+    const packageJson = JSON.parse(
+      await readFile(new URL("../package.json", import.meta.url), "utf8"),
+    ) as { scripts: Record<string, string> };
+
+    expect(packageJson.scripts["prisma:setup"]).toBe("tsx scripts/setup-sqlite-db.ts");
+    expect(packageJson.scripts["test:db"]).toContain(
+      "tsx scripts/setup-sqlite-db.ts file:./test.db --reset",
+    );
+  });
+
   it("resolves relative SQLite URLs from the backend directory", () => {
     expect(resolveSqliteUrl("file:./test.db", backendDirectory)).toBe(
       `file:${resolve(backendDirectory, "test.db").replaceAll("\\", "/")}`,
