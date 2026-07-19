@@ -30,7 +30,7 @@
 |---|---|---|
 | Workspace | `package.json`, `.gitignore`, `START-HERE.md` | Shared scripts, ignored artifacts, daily workflow |
 | Backend boot | `backend/src/app.ts`, `backend/src/server.ts`, `backend/src/config/env.ts` | Express composition, listener, validated configuration |
-| Data | `backend/prisma/schema.prisma`, `backend/prisma/seed.ts`, `backend/src/db/prisma.ts` | User/Book schema, reviewer user, Prisma lifecycle |
+| Data | `backend/prisma/schema.prisma`, `backend/prisma/seed.ts`, `backend/prisma.config.ts`, `backend/src/db/prisma.ts` | User/Book schema, reviewer user, Prisma lifecycle |
 | Auth | `backend/src/modules/auth/*`, `backend/src/auth/*`, `backend/src/middleware/authenticate.ts` | Login, password comparison, JWT issue/verify, route protection |
 | Books | `backend/src/modules/books/*` | Validated list/create/delete behavior |
 | Frontend transport | `frontend/src/api/*` | Typed contracts, Bearer header, centralized 401 handling |
@@ -135,15 +135,13 @@ Use these backend scripts:
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/src/server.js",
-    "test:db": "cross-env DATABASE_URL=file:./test.db prisma db push --skip-generate",
-    "test": "npm run test:db && vitest run",
-    "test:watch": "npm run test:db && vitest",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed"
-  },
-  "prisma": { "seed": "tsx prisma/seed.ts" }
+  }
 }
 ```
 
@@ -218,6 +216,7 @@ Expected: clean worktree after commit.
 - Create: `backend/src/db/prisma.ts`
 - Create: `backend/prisma/schema.prisma`
 - Create: `backend/prisma/seed.ts`
+- Create: `backend/prisma.config.ts`
 - Create: `backend/tests/setup.ts`
 - Create: `backend/tests/database.test.ts`
 
@@ -252,7 +251,7 @@ describe("Book persistence", () => {
 Run: `npm test --workspace backend -- database.test.ts`
 Expected: FAIL because `src/db/prisma.ts` and Prisma model are not defined.
 
-- [ ] **Step 3: Define environment and schema**
+- [ ] **Step 3: Define environment, Prisma 7 configuration, and schema**
 
 Create `backend/.env.example`:
 
@@ -280,7 +279,9 @@ const EnvSchema = z.object({
 export const env = EnvSchema.parse(process.env);
 ```
 
-Define `User` and `Book` in `schema.prisma` using the fields and limits documented in the design spec; use SQLite provider and `env("DATABASE_URL")`.
+Define `User` and `Book` in `schema.prisma` using the fields and limits documented in the design spec; use the SQLite provider only.
+
+Prisma 7 note: `prisma.config.ts` owns the datasource URL and seed command. The schema datasource contains the provider only; use the `prisma-client` generator with an explicit `../generated` output. Runtime SQLite uses `@prisma/adapter-better-sqlite3` with `better-sqlite3`.
 
 Create `backend/tests/setup.ts` so test imports always receive deterministic local-only configuration:
 
@@ -293,7 +294,17 @@ process.env.SEED_USERNAME = "reviewer";
 process.env.SEED_PASSWORD = "LibraryDemo123!";
 ```
 
-- [ ] **Step 4: Add Prisma singleton and idempotent seed**
+- [ ] **Step 4: Add Prisma singleton, database test scripts, and idempotent seed**
+
+After the real schema and Prisma configuration exist, add these backend scripts:
+
+```json
+{
+  "test:db": "cross-env DATABASE_URL=file:./test.db prisma db push",
+  "test": "npm run test:db && vitest run",
+  "test:watch": "npm run test:db && vitest"
+}
+```
 
 Export `prisma = new PrismaClient()` from `src/db/prisma.ts`. In `prisma/seed.ts`, hash `SEED_PASSWORD` with bcrypt cost 12 and upsert by `username`:
 
