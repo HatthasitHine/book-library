@@ -737,7 +737,7 @@ git commit -m "feat: add guarded JWT login flow"
 - Produces: `BookForm({ onCreate, disabled })`, `BookList({ books, onDelete, deletingIds: ReadonlySet<number> })`, `BookSearch({ value, onChange, resultCount })`
 - Consumes: `apiRequest`, `useAuth`, and protected `/books` route
 
-- [ ] **Step 1: Write failing library behavior tests**
+- [x] **Step 1: Write failing library behavior tests**
 
 Use MSW to test these visible behaviors separately:
 
@@ -756,12 +756,12 @@ expect(screen.getByLabelText("ชื่อหนังสือ")).toHaveFocus()
 
 Also assert delete updates immediately, failed mutation shows actionable error, empty state appears, and search matches title/author/category case-insensitively without changing the source array.
 
-- [ ] **Step 2: Run Library tests and confirm RED**
+- [x] **Step 2: Run Library tests and confirm RED**
 
 Run: `npm test --workspace frontend -- LibraryPage.test.tsx`
 Expected: FAIL because library modules and components are absent.
 
-- [ ] **Step 3: Implement typed books API**
+- [x] **Step 3: Implement typed books API**
 
 Define:
 
@@ -772,11 +772,11 @@ export type BookInput = Pick<Book, "title" | "author" | "category">;
 
 Map GET `{ books }`, POST `{ book }`, and DELETE 204 through `apiRequest` without duplicating token logic.
 
-- [ ] **Step 4: Implement focused presentational components**
+- [x] **Step 4: Implement focused presentational components**
 
 `BookForm` owns controlled fields and a title `useRef<HTMLInputElement>`. It awaits `onCreate`; only after success does it clear all fields and call `titleRef.current?.focus()`. `BookList` uses semantic list/article markup and accessible delete labels such as `ลบ Dune`. `BookSearch` displays `พบ {resultCount} เล่ม`.
 
-- [ ] **Step 5: Implement LibraryPage state and effects**
+- [x] **Step 5: Implement LibraryPage state and effects**
 
 Include the reference marker in `LibraryPage.tsx`:
 
@@ -789,11 +789,11 @@ On mount, fetch once, set loading false in `finally`, and avoid updating after u
 
 Create prepends the returned book. Delete tracks pending ids and disables each active row, awaits API success, then filters by id. Network failures keep current data and set an actionable Thai error.
 
-- [ ] **Step 6: Add logout and replace the temporary route content**
+- [x] **Step 6: Add logout and replace the temporary route content**
 
 Render username and “ออกจากระบบ” in the library header. Logout clears auth and navigates to `/login` with replace. Update `App.tsx` to render `LibraryPage`.
 
-- [ ] **Step 7: Run hook and behavior tests**
+- [x] **Step 7: Run hook and behavior tests**
 
 Run:
 
@@ -805,7 +805,7 @@ npm run typecheck --workspace frontend
 
 Expected: all frontend tests PASS; the focus assertion proves `useRef`; filtered result tests prove `useMemo`; mutation notice tests prove the update effect.
 
-- [ ] **Step 8: Commit book management UI**
+- [x] **Step 8: Commit book management UI**
 
 ```powershell
 git add frontend/src

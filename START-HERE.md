@@ -28,9 +28,9 @@
 
 ## บันทึกส่งต่อรอบล่าสุด
 
-- สถานะ: Task 5 ผ่าน implementation และ independent task review แล้ว
-- ขั้นถัดไป: Task 6 — Searchable library UI, mutations, hooks, and focus behavior
-- ผลทดสอบล่าสุด: backend 52 tests และ frontend 13 tests ผ่าน; root typecheck/build ผ่าน
+- สถานะ: Task 6 ผ่าน implementation และ independent task review แล้ว
+- ขั้นถัดไป: Task 7 — Responsive visual system and accessibility pass
+- ผลทดสอบล่าสุด: backend 52 tests และ frontend 23 tests ผ่าน; root typecheck/build ผ่าน
 - Blocker: ไม่มี
 
 ## Definition of Done
