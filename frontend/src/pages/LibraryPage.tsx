@@ -19,6 +19,8 @@ type Notice =
   | { id: number; tone: "error"; message: string }
   | null;
 
+type SuccessfulAction = { id: number; kind: "created" | "deleted" } | null;
+
 export function LibraryPage() {
   const navigate = useNavigate();
   const { logout, username } = useAuth();
@@ -30,8 +32,10 @@ export function LibraryPage() {
   const [deletingIds, setDeletingIds] = useState<ReadonlySet<number>>(() => new Set());
   const [searchTerm, setSearchTerm] = useState("");
   const [notice, setNotice] = useState<Notice>(null);
+  const [successfulAction, setSuccessfulAction] = useState<SuccessfulAction>(null);
   const mountedRef = useRef(false);
   const noticeIdRef = useRef(0);
+  const successfulActionIdRef = useRef(0);
   const pendingDeleteIdsRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
@@ -75,9 +79,22 @@ export function LibraryPage() {
     );
   }, [books, searchTerm]);
 
-  function showNotice(tone: "success" | "error", message: string) {
+  useEffect(() => {
+    if (!successfulAction) {
+      return;
+    }
+
     noticeIdRef.current += 1;
-    setNotice({ id: noticeIdRef.current, tone, message });
+    setNotice({
+      id: noticeIdRef.current,
+      tone: "success",
+      message: successfulAction.kind === "created" ? "เพิ่มหนังสือแล้ว" : "ลบหนังสือแล้ว",
+    });
+  }, [books, successfulAction]);
+
+  function showErrorNotice(message: string) {
+    noticeIdRef.current += 1;
+    setNotice({ id: noticeIdRef.current, tone: "error", message });
   }
 
   async function handleCreate(input: BookInput): Promise<void> {
@@ -92,11 +109,12 @@ export function LibraryPage() {
       }
 
       setBooks((currentBooks) => [book, ...currentBooks]);
-      showNotice("success", "เพิ่มหนังสือแล้ว");
+      successfulActionIdRef.current += 1;
+      setSuccessfulAction({ id: successfulActionIdRef.current, kind: "created" });
     } catch (caught) {
       unauthorized = caught instanceof ApiError && caught.status === 401;
       if (mountedRef.current && !unauthorized) {
-        showNotice("error", "ไม่สามารถเพิ่มหนังสือได้ กรุณาลองใหม่");
+        showErrorNotice("ไม่สามารถเพิ่มหนังสือได้ กรุณาลองใหม่");
       }
       throw caught;
     } finally {
@@ -123,11 +141,12 @@ export function LibraryPage() {
       }
 
       setBooks((currentBooks) => currentBooks.filter((book) => book.id !== id));
-      showNotice("success", "ลบหนังสือแล้ว");
+      successfulActionIdRef.current += 1;
+      setSuccessfulAction({ id: successfulActionIdRef.current, kind: "deleted" });
     } catch (caught) {
       unauthorized = caught instanceof ApiError && caught.status === 401;
       if (mountedRef.current && !unauthorized) {
-        showNotice("error", "ไม่สามารถลบหนังสือได้ กรุณาลองใหม่");
+        showErrorNotice("ไม่สามารถลบหนังสือได้ กรุณาลองใหม่");
       }
     } finally {
       pendingDeleteIdsRef.current.delete(id);

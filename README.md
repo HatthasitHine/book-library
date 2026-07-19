@@ -4,7 +4,7 @@ A full-stack personal book library with a React/Vite interface, an Express API, 
 
 ## Prerequisites and layout
 
-- Node.js 22 or newer and npm 10 or newer
+- Node.js 22.12+ LTS or Node.js 24, and npm 10 or newer
 - Optional for API review: Bruno desktop or Bruno CLI (`bru.cmd` on Windows)
 - `backend/` — Express, Prisma, SQLite, JWT authentication, and tests
 - `frontend/` — React, Vite, guarded routes, library UI, and tests

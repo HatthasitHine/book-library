@@ -4,7 +4,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
-import { StrictMode } from "react";
+import { Profiler, StrictMode } from "react";
 import App from "../App";
 import { AuthProvider } from "../auth/AuthProvider";
 
@@ -67,6 +67,21 @@ function renderStrictLibrary() {
         </AuthProvider>
       </MemoryRouter>
     </StrictMode>,
+  );
+}
+
+function renderProfiledLibrary(onRender: () => void) {
+  localStorage.setItem("book-library-token", "test-token");
+  localStorage.setItem("book-library-username", "reader");
+
+  return render(
+    <MemoryRouter initialEntries={["/books"]}>
+      <AuthProvider>
+        <Profiler id="library" onRender={onRender}>
+          <App />
+        </Profiler>
+      </AuthProvider>
+    </MemoryRouter>,
   );
 }
 
@@ -188,6 +203,48 @@ describe("LibraryPage", () => {
     await user.click(screen.getByRole("button", { name: "เพิ่มหนังสือ" }));
     await screen.findByText("Dawn");
 
+    expect(screen.getByText("เพิ่มหนังสือแล้ว")).not.toBe(firstNotice);
+  });
+
+  it("announces successful mutations from the book-state effect and refreshes repeated notices", async () => {
+    const user = userEvent.setup();
+    let nextBookId = 3;
+    const commits: Array<{ hasKindred: boolean; hasDawn: boolean; hasSuccess: boolean }> = [];
+    server.use(
+      http.post("http://localhost:4000/api/books", async ({ request }) => {
+        const input = (await request.json()) as { title: string; author: string; category: string };
+        const id = nextBookId;
+        nextBookId += 1;
+        return HttpResponse.json({ book: { id, ...input, createdAt: "2026-07-19T01:00:00.000Z" } }, { status: 201 });
+      }),
+    );
+    renderProfiledLibrary(() => {
+      const pageText = document.body.textContent ?? "";
+      commits.push({
+        hasKindred: pageText.includes("Kindred"),
+        hasDawn: pageText.includes("Dawn"),
+        hasSuccess: pageText.includes("เพิ่มหนังสือแล้ว"),
+      });
+    });
+    await screen.findByText("Dune");
+
+    await user.type(screen.getByLabelText("ชื่อหนังสือ"), "Kindred");
+    await user.type(screen.getByLabelText("ผู้เขียน"), "Octavia E. Butler");
+    await user.type(screen.getByLabelText("หมวดหมู่"), "Science Fiction");
+    commits.length = 0;
+    await user.click(screen.getByRole("button", { name: "เพิ่มหนังสือ" }));
+    const firstNotice = await screen.findByText("เพิ่มหนังสือแล้ว");
+
+    expect(commits).toContainEqual({ hasKindred: true, hasDawn: false, hasSuccess: false });
+
+    await user.type(screen.getByLabelText("ชื่อหนังสือ"), "Dawn");
+    await user.type(screen.getByLabelText("ผู้เขียน"), "Octavia E. Butler");
+    await user.type(screen.getByLabelText("หมวดหมู่"), "Science Fiction");
+    commits.length = 0;
+    await user.click(screen.getByRole("button", { name: "เพิ่มหนังสือ" }));
+    await screen.findByText("Dawn");
+
+    expect(commits).toContainEqual({ hasKindred: true, hasDawn: true, hasSuccess: false });
     expect(screen.getByText("เพิ่มหนังสือแล้ว")).not.toBe(firstNotice);
   });
 
