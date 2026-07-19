@@ -36,38 +36,41 @@ export function LoginPage() {
   }
 
   return (
-    <main>
-      <h1>เข้าสู่คลังหนังสือ</h1>
-      {message ? <p>{message}</p> : null}
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label htmlFor="username">ชื่อผู้ใช้</label>
-          <input
-            id="username"
-            name="username"
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
-            autoComplete="username"
-            required
-          />
-        </div>
-        <div>
-          <label htmlFor="password">รหัสผ่าน</label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            autoComplete="current-password"
-            required
-          />
-        </div>
-        {error ? <p role="alert">{error}</p> : null}
-        <button type="submit" disabled={submitting}>
-          {submitting ? "กำลังเข้าสู่ระบบ" : "เข้าสู่ระบบ"}
-        </button>
-      </form>
+    <main className="login-page">
+      <div className="login-panel">
+        <p className="eyebrow">PERSONAL CATALOGUE</p>
+        <h1>เข้าสู่คลังหนังสือ</h1>
+        {message ? <p className="login-message" role="status" aria-live="polite">{message}</p> : null}
+        <form onSubmit={handleSubmit}>
+          <div>
+            <label htmlFor="username">ชื่อผู้ใช้</label>
+            <input
+              id="username"
+              name="username"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              autoComplete="username"
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor="password">รหัสผ่าน</label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete="current-password"
+              required
+            />
+          </div>
+          {error ? <p role="alert">{error}</p> : null}
+          <button type="submit" disabled={submitting}>
+            {submitting ? "กำลังเข้าสู่ระบบ" : "เข้าสู่ระบบ"}
+          </button>
+        </form>
+      </div>
     </main>
   );
 }

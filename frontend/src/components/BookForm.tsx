@@ -50,7 +50,7 @@ export function BookForm({ onCreate, disabled }: BookFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form className="book-form" onSubmit={handleSubmit}>
       <div>
         <label htmlFor="book-title">ชื่อหนังสือ</label>
         <input

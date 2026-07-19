@@ -145,20 +145,32 @@ export function LibraryPage() {
   }
 
   return (
-    <main>
-      <header>
+    <main className="library-page">
+      <header className="library-header">
+        <p className="eyebrow">PERSONAL CATALOGUE</p>
         <h1>คลังหนังสือของฉัน</h1>
-        {username ? <p>ผู้ใช้: {username}</p> : null}
+        {username ? <p className="reader-name">ผู้ใช้: {username}</p> : null}
+      </header>
+
+      <div className="library-layout">
+        <section className="catalogue-search" aria-label="ค้นหาในคลัง">
+          <BookSearch value={searchTerm} onChange={setSearchTerm} resultCount={filteredBooks.length} />
+        </section>
+        <aside className="form-rail" aria-label="เพิ่มหนังสือ">
+          <h2>ลงรายการใหม่</h2>
+          <BookForm onCreate={handleCreate} disabled={loading || creating} />
+        </aside>
+        <section className="catalogue" aria-label="รายการในคลัง">
+          <StatusMessage message={successMessage} />
+          <StatusMessage message={error} tone="error" />
+          {loading ? <p className="loading-state" role="status" aria-live="polite">กำลังเปิดบัตรรายการ…</p> : <BookList books={filteredBooks} onDelete={handleDelete} deletingIds={deletingIds} />}
+        </section>
+      </div>
+      <footer className="library-session">
         <button type="button" onClick={handleLogout}>
           ออกจากระบบ
         </button>
-      </header>
-
-      <BookForm onCreate={handleCreate} disabled={loading || creating} />
-      <BookSearch value={searchTerm} onChange={setSearchTerm} resultCount={filteredBooks.length} />
-      <StatusMessage message={successMessage} />
-      <StatusMessage message={error} tone="error" />
-      {loading ? <p role="status">กำลังเปิดบัตรรายการ…</p> : <BookList books={filteredBooks} onDelete={handleDelete} deletingIds={deletingIds} />}
+      </footer>
     </main>
   );
 }

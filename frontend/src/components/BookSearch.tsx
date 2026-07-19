@@ -6,7 +6,7 @@ interface BookSearchProps {
 
 export function BookSearch({ value, onChange, resultCount }: BookSearchProps) {
   return (
-    <div>
+    <div className="book-search">
       <label htmlFor="book-search">ค้นหาหนังสือ</label>
       <input
         id="book-search"
@@ -14,7 +14,9 @@ export function BookSearch({ value, onChange, resultCount }: BookSearchProps) {
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
-      <p aria-live="polite">พบ {resultCount} เล่ม</p>
+      <p className="search-results" role="status" aria-live="polite">
+        พบ {resultCount} เล่ม{value.trim() ? <span className="search-query"> · “{value.trim()}”</span> : null}
+      </p>
     </div>
   );
 }

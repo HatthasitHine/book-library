@@ -8,5 +8,9 @@ export function StatusMessage({ message, tone = "success" }: StatusMessageProps)
     return null;
   }
 
-  return <p role={tone === "error" ? "alert" : "status"}>{message}</p>;
+  if (tone === "error") {
+    return <p className="status-message status-message--error" role="alert">{message}</p>;
+  }
+
+  return <p className="status-message status-message--success" role="status" aria-live="polite">{message}</p>;
 }
