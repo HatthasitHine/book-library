@@ -441,7 +441,7 @@ Expected: `.env` and `dev.db` remain untracked/ignored.
 - Produces: `authenticate(req, res, next)` and `req.auth = { userId: number; username: string }`
 - Produces: `authRouter` serving `POST /login`
 
-- [ ] **Step 1: Write failing auth tests**
+- [x] **Step 1: Write failing auth tests**
 
 Create Supertest cases in `backend/tests/auth.test.ts` asserting:
 
@@ -478,16 +478,16 @@ app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
 
 Seed the reviewer with a bcrypt hash in `beforeAll` and delete test users/books in `afterAll`.
 
-- [ ] **Step 2: Run auth tests and confirm RED**
+- [x] **Step 2: Run auth tests and confirm RED**
 
 Run: `npm test --workspace backend -- auth.test.ts`
 Expected: FAIL because `app`, route, and token helpers do not exist.
 
-- [ ] **Step 3: Implement password and token helpers**
+- [x] **Step 3: Implement password and token helpers**
 
 Use `bcryptjs.compare`, `jsonwebtoken.sign`, and `jsonwebtoken.verify`; force algorithm `HS256`, issuer `personal-book-library`, audience `book-library-web`, and `expiresIn: "1h"`. Convert numeric user id to `sub: String(user.id)` and reject non-numeric `sub` during verification.
 
-- [ ] **Step 4: Implement login schema, service, and route**
+- [x] **Step 4: Implement login schema, service, and route**
 
 `LoginInputSchema` accepts trimmed username and non-empty password. `authenticateCredentials` looks up by username, returns `null` for both unknown user and password mismatch, and returns `{ id, username }` only on match. The route returns the same response for either invalid-credential case and includes:
 
@@ -504,7 +504,7 @@ authRouter.post("/login", async (req, res) => {
 });
 ```
 
-- [ ] **Step 5: Implement Bearer authentication middleware**
+- [x] **Step 5: Implement Bearer authentication middleware**
 
 Parse exactly two Authorization segments, require case-insensitive `Bearer`, verify the token, assign `req.auth`, and use this response for every credential failure:
 
@@ -514,7 +514,7 @@ res.status(401).json({ error: "Access denied: session credential missing or expi
 
 Add Express request declaration merging in `src/types/express.d.ts`.
 
-- [ ] **Step 6: Run focused tests and type-check**
+- [x] **Step 6: Run focused tests and type-check**
 
 Run:
 
@@ -525,7 +525,7 @@ npm run typecheck --workspace backend
 
 Expected: all auth cases PASS and type-check exits 0.
 
-- [ ] **Step 7: Commit authentication**
+- [x] **Step 7: Commit authentication**
 
 ```powershell
 git add backend/src/auth backend/src/modules/auth backend/src/middleware backend/src/types backend/tests/auth.test.ts
@@ -551,7 +551,7 @@ git commit -m "feat: authenticate reviewers with expiring JWTs"
 - Produces: protected `GET /api/books`, `POST /api/books`, `DELETE /api/books/:id`
 - Consumes: `authenticate` and `prisma` from Tasks 2–3
 
-- [ ] **Step 1: Write failing protected CRUD tests**
+- [x] **Step 1: Write failing protected CRUD tests**
 
 Create table-driven unauthorized tests for all three book routes and happy-path tests using a token from `/api/login`. Store the token in `let token: string` during `beforeAll`, then use `const authHeader = () => ({ Authorization: `Bearer ${token}` })`. Required assertions:
 
@@ -570,12 +570,12 @@ expect((await request(app).delete("/api/books/999999").set(authHeader())).status
 
 Also assert blank/over-limit fields and non-positive/non-integer ids return 400.
 
-- [ ] **Step 2: Run CRUD tests and confirm RED**
+- [x] **Step 2: Run CRUD tests and confirm RED**
 
 Run: `npm test --workspace backend -- books.test.ts`
 Expected: FAIL with missing book modules/routes.
 
-- [ ] **Step 3: Implement book validation and service**
+- [x] **Step 3: Implement book validation and service**
 
 Use Zod transformed strings:
 
@@ -590,7 +590,7 @@ export const BookIdSchema = z.coerce.number().int().positive();
 
 `listBooks` uses `orderBy: { createdAt: "desc" }`; `deleteBook` uses `deleteMany({ where: { id } })` and returns `count === 1` so missing ids do not become unhandled Prisma exceptions.
 
-- [ ] **Step 4: Implement protected routes**
+- [x] **Step 4: Implement protected routes**
 
 Apply `authenticate` at router level and include the reference marker:
 
@@ -604,7 +604,7 @@ bookRouter.delete("/:id", ...);
 
 Return `200 { books }`, `201 { book }`, `204` without body, and `404 { error: "Book not found" }` according to the contract.
 
-- [ ] **Step 5: Compose Express app and server**
+- [x] **Step 5: Compose Express app and server**
 
 `app.ts` installs `cors({ origin: env.CLIENT_ORIGIN })`, `express.json({ limit: "16kb" })`, auth router, book router, 404 JSON fallback, then error handler. `server.ts` imports app, listens on `env.PORT`, and logs exactly:
 
@@ -614,7 +614,7 @@ console.log(`${SERVER_READY_MESSAGE} on port ${env.PORT}`);
 
 Handle Zod errors as 400 without stack; unexpected errors as 500 with `{ error: "Internal server error" }`. Import `SERVER_READY_MESSAGE` from the Task 1 file and append ` on port ${env.PORT}` when logging.
 
-- [ ] **Step 6: Run the entire backend gate**
+- [x] **Step 6: Run the entire backend gate**
 
 Run:
 
@@ -626,7 +626,7 @@ npm run build --workspace backend
 
 Expected: database, auth, and books tests PASS; type-check and build exit 0.
 
-- [ ] **Step 7: Commit the protected API**
+- [x] **Step 7: Commit the protected API**
 
 ```powershell
 git add backend/src backend/tests
@@ -656,7 +656,7 @@ git commit -m "feat: add protected book management API"
 - Produces: `useAuth(): { token, username, login, logout }`
 - Produces: protected `/books` and public `/login` routes
 
-- [ ] **Step 1: Write failing authentication UI tests**
+- [x] **Step 1: Write failing authentication UI tests**
 
 With MSW and a memory router, assert:
 
@@ -671,16 +671,16 @@ expect(await screen.findByRole("heading", { name: "คลังหนังส�
 
 Add cases for invalid credentials, unauthenticated `/books` redirect, and explicit logout clearing storage.
 
-- [ ] **Step 2: Run Login tests and confirm RED**
+- [x] **Step 2: Run Login tests and confirm RED**
 
 Run: `npm test --workspace frontend -- LoginPage.test.tsx`
 Expected: FAIL because auth modules and page are absent.
 
-- [ ] **Step 3: Add typed transport with centralized unauthorized handling**
+- [x] **Step 3: Add typed transport with centralized unauthorized handling**
 
 Set `VITE_API_URL=http://localhost:4000/api` in `frontend/.env.example`. `apiRequest` reads `book-library-token`, attaches `Authorization: Bearer ...` when present, sets JSON content type only when a body exists, returns `undefined` for HTTP 204, and otherwise parses JSON. On 401 it clears both `book-library-token` and `book-library-username`, then dispatches a browser `book-library:unauthorized` event; other non-2xx responses throw an `ApiError` containing the server `{ error }` message.
 
-- [ ] **Step 4: Implement AuthProvider**
+- [x] **Step 4: Implement AuthProvider**
 
 Initialize token and username state synchronously from localStorage, persist both on `login`, clear both on `logout`, and subscribe/unsubscribe to the unauthorized event in `useEffect`. Include:
 
@@ -692,15 +692,15 @@ const USERNAME_KEY = "book-library-username";
 
 Do not decode the JWT in the browser as proof of validity; Backend 401 is authoritative.
 
-- [ ] **Step 5: Implement Login page and route guard**
+- [x] **Step 5: Implement Login page and route guard**
 
 Use controlled username/password state, `submitting`, and `error`. Disable submit while pending. `ProtectedRoute` redirects missing-token users to `/login` with route state message “กรุณาเข้าสู่ระบบก่อนใช้งาน”. After successful login navigate with `{ replace: true }` to `/books`.
 
-- [ ] **Step 6: Compose application routes**
+- [x] **Step 6: Compose application routes**
 
 `main.tsx` wraps `BrowserRouter` and `AuthProvider`. `App.tsx` maps `/login`, protected `/books`, and catch-all redirect. Use a temporary semantic `<h1>คลังหนังสือของฉัน</h1>` for the library route until Task 6.
 
-- [ ] **Step 7: Run frontend auth gate**
+- [x] **Step 7: Run frontend auth gate**
 
 Run:
 
@@ -711,7 +711,7 @@ npm run typecheck --workspace frontend
 
 Expected: auth tests PASS and type-check exits 0.
 
-- [ ] **Step 8: Commit frontend authentication**
+- [x] **Step 8: Commit frontend authentication**
 
 ```powershell
 git add frontend/.env.example frontend/src
