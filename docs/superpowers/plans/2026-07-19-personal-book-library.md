@@ -878,7 +878,7 @@ npm run build --workspace frontend
 
 Expected: accessibility and behavior tests PASS; production build exits 0.
 
-- [ ] **Step 5: Perform keyboard and viewport checks**
+- [x] **Step 5: Perform keyboard and viewport checks**
 
 Run `npm run dev`, then verify at 360×800 and 1440×900:
 
@@ -994,7 +994,7 @@ Verify in browser and Bruno:
 
 Expected: every item passes; capture any failure as a new failing automated test before fixing it.
 
-Execution note (2026-07-19): Bruno, automated behavior tests, and HTTP runtime checks passed, but no browser runtime was available. This step intentionally remains unchecked until the visual and keyboard checks are executed in a real browser at mobile and desktop widths.
+Execution note (2026-07-19): Bruno and HTTP checks passed. The in-app browser verified login, loading, create/clear/refocus, search, delete, logout/route guard, long content, visible focus, 44px controls, and no overflow at 360×800 and 1440×900. Invalid/missing-token behavior is covered by Bruno and automated tests. This step remains unchecked only because browser policy forbids directly inspecting or editing localStorage, so the exact manual “remove token in DevTools” sub-step was not performed.
 
 - [x] **Step 9: Update the handoff note and commit submission assets**
 

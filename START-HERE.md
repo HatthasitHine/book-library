@@ -28,10 +28,10 @@
 
 ## บันทึกส่งต่อรอบล่าสุด
 
-- สถานะ: Task 8 implementation และ reproducible clean-checkout verification เสร็จแล้ว; รอ independent task review
-- ขั้นถัดไป: independent review จาก agent ใหม่ แล้วจึงทำ final branch review/ส่งมอบ
-- ผลทดสอบล่าสุด: backend 54 tests และ frontend 28 tests ผ่าน; root typecheck/build ผ่าน; Bruno 5/5 requests และ clean-copy gates ผ่าน
-- Blocker: browser runtime รายงานว่าไม่พร้อมใช้งาน จึงยังไม่อ้างว่า visual/keyboard checklist ที่ mobile/desktop ผ่าน; ต้องตรวจด้วย browser จริงก่อน production/grading
+- สถานะ: Tasks 1–8, independent task reviews และ whole-project code review เสร็จแล้ว; ไม่มี Critical/Important finding ค้าง
+- ขั้นถัดไป: เลือกวิธีเก็บ branch — merge, push/PR หรือเก็บ branch ไว้
+- ผลทดสอบล่าสุด: backend 60 tests และ frontend 37 tests ผ่าน; lint/typecheck/build ผ่าน; Bruno 5/5 และ clean-copy gates ผ่าน; browser checks ที่ 360×800/1440×900 ผ่าน
+- Blocker: เหลือ manual DevTools sub-step เดียว (ลบ localStorage token โดยตรง) ซึ่ง browser policy ไม่อนุญาต; logout/route guard และ missing/invalid token ผ่าน UI, Bruno และ automated tests แล้ว
 
 ## Definition of Done
 
