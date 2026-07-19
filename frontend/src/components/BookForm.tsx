@@ -1,6 +1,5 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { flushSync } from "react-dom";
 import type { BookInput } from "../api/books";
 
 interface BookFormProps {
@@ -13,18 +12,38 @@ export function BookForm({ onCreate, disabled }: BookFormProps) {
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
   const [category, setCategory] = useState("");
+  const [focusAfterSuccess, setFocusAfterSuccess] = useState(false);
+  const mountedRef = useRef(false);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!focusAfterSuccess || !mountedRef.current) {
+      return;
+    }
+
+    titleRef.current?.focus();
+    setFocusAfterSuccess(false);
+  }, [focusAfterSuccess]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     try {
       await onCreate({ title, author, category });
-      flushSync(() => {
-        setTitle("");
-        setAuthor("");
-        setCategory("");
-      });
-      titleRef.current?.focus();
+      if (!mountedRef.current) {
+        return;
+      }
+
+      setTitle("");
+      setAuthor("");
+      setCategory("");
+      setFocusAfterSuccess(true);
     } catch {
       // The parent owns the mutation error message and leaves the form intact.
     }

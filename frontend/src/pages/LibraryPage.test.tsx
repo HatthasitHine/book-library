@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import App from "../App";
@@ -22,6 +22,15 @@ const earthsea = {
   category: "Fantasy",
   createdAt: "2026-07-18T00:00:00.000Z",
 };
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((nextResolve) => {
+    resolve = nextResolve;
+  });
+
+  return { promise, resolve };
+}
 
 const server = setupServer(
   http.get("http://localhost:4000/api/books", () => HttpResponse.json({ books: [dune, earthsea] })),
@@ -102,6 +111,7 @@ describe("LibraryPage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("ไม่สามารถเพิ่มหนังสือได้ กรุณาลองใหม่");
     expect(screen.getByText("Dune")).toBeInTheDocument();
     expect(screen.getByLabelText("ชื่อหนังสือ")).toHaveValue("Kindred");
+    expect(screen.getByLabelText("ชื่อหนังสือ")).not.toHaveFocus();
   });
 
   it("shows the empty state", async () => {
@@ -133,5 +143,73 @@ describe("LibraryPage", () => {
     await user.clear(search);
     expect(screen.getByText("Dune")).toBeInTheDocument();
     expect(screen.getByText("A Wizard of Earthsea")).toBeInTheDocument();
+  });
+
+  it("keeps create controls disabled until the initial book load settles", async () => {
+    const response = deferred<Response>();
+    server.use(http.get("http://localhost:4000/api/books", () => response.promise));
+    renderLibrary();
+
+    expect(screen.getByLabelText("ชื่อหนังสือ")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "เพิ่มหนังสือ" })).toBeDisabled();
+
+    response.resolve(HttpResponse.json({ books: [dune, earthsea] }));
+
+    expect(await screen.findByText("Dune")).toBeInTheDocument();
+    expect(screen.getByLabelText("ชื่อหนังสือ")).toBeEnabled();
+    expect(screen.getByRole("button", { name: "เพิ่มหนังสือ" })).toBeEnabled();
+  });
+
+  it("does not update library state after a deferred 401 mutation redirects away", async () => {
+    const user = userEvent.setup();
+    const response = deferred<Response>();
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    server.use(http.post("http://localhost:4000/api/books", () => response.promise));
+    renderLibrary();
+    await screen.findByText("Dune");
+
+    await user.type(screen.getByLabelText("ชื่อหนังสือ"), "Kindred");
+    await user.type(screen.getByLabelText("ผู้เขียน"), "Octavia E. Butler");
+    await user.type(screen.getByLabelText("หมวดหมู่"), "Science Fiction");
+    await user.click(screen.getByRole("button", { name: "เพิ่มหนังสือ" }));
+
+    response.resolve(HttpResponse.json({ error: "Expired token" }, { status: 401 }));
+
+    expect(await screen.findByRole("heading", { name: "เข้าสู่คลังหนังสือ" })).toBeInTheDocument();
+    await Promise.resolve();
+    expect(errorSpy).not.toHaveBeenCalledWith(expect.stringMatching(/unmounted|state update/i));
+    errorSpy.mockRestore();
+  });
+
+  it("keeps each concurrent delete pending independently and blocks a duplicate row request", async () => {
+    const user = userEvent.setup();
+    const duneDeletion = deferred<Response>();
+    const earthseaDeletion = deferred<Response>();
+    let deleteRequests = 0;
+    server.use(
+      http.delete("http://localhost:4000/api/books/:id", ({ params }) => {
+        deleteRequests += 1;
+        return params.id === "1" ? duneDeletion.promise : earthseaDeletion.promise;
+      }),
+    );
+    renderLibrary();
+    await screen.findByText("Dune");
+
+    const duneDelete = screen.getByRole("button", { name: "ลบ Dune" });
+    const earthseaDelete = screen.getByRole("button", { name: "ลบ A Wizard of Earthsea" });
+    await user.click(duneDelete);
+    await user.click(earthseaDelete);
+
+    expect(duneDelete).toBeDisabled();
+    expect(earthseaDelete).toBeDisabled();
+    await user.click(duneDelete);
+    expect(deleteRequests).toBe(2);
+
+    duneDeletion.resolve(new HttpResponse(null, { status: 204 }));
+    await waitFor(() => expect(screen.queryByText("Dune")).not.toBeInTheDocument());
+    expect(earthseaDelete).toBeDisabled();
+
+    earthseaDeletion.resolve(new HttpResponse(null, { status: 204 }));
+    expect(await screen.findByText("ยังไม่มีหนังสือในคลัง")).toBeInTheDocument();
   });
 });

@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createBook, deleteBook, listBooks } from "../api/books";
 import type { Book, BookInput } from "../api/books";
+import { ApiError } from "../api/types";
 import { BookForm } from "../components/BookForm";
 import { BookList } from "../components/BookList";
 import { BookSearch } from "../components/BookSearch";
@@ -17,36 +18,40 @@ export function LibraryPage() {
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deletingIds, setDeletingIds] = useState<ReadonlySet<number>>(() => new Set());
   const [searchTerm, setSearchTerm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [action, setAction] = useState<Action>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const mountedRef = useRef(false);
+  const pendingDeleteIdsRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
-    let mounted = true;
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
+  useEffect(() => {
     async function loadBooks() {
       try {
         const fetchedBooks = await listBooks();
-        if (mounted) {
+        if (mountedRef.current) {
           setBooks(fetchedBooks);
         }
       } catch {
-        if (mounted) {
+        if (mountedRef.current) {
           setError("ไม่สามารถโหลดรายการหนังสือได้ กรุณาลองใหม่");
         }
       } finally {
-        if (mounted) {
+        if (mountedRef.current) {
           setLoading(false);
         }
       }
     }
 
     void loadBooks();
-    return () => {
-      mounted = false;
-    };
   }, []);
 
   useEffect(() => {
@@ -69,33 +74,63 @@ export function LibraryPage() {
   }, [books, searchTerm]);
 
   async function handleCreate(input: BookInput): Promise<void> {
+    let unauthorized = false;
     setCreating(true);
     setError(null);
 
     try {
       const book = await createBook(input);
+      if (!mountedRef.current) {
+        throw new Error("Library page unmounted");
+      }
+
       setBooks((currentBooks) => [book, ...currentBooks]);
       setAction("created");
     } catch (caught) {
-      setError("ไม่สามารถเพิ่มหนังสือได้ กรุณาลองใหม่");
+      unauthorized = caught instanceof ApiError && caught.status === 401;
+      if (mountedRef.current && !unauthorized) {
+        setError("ไม่สามารถเพิ่มหนังสือได้ กรุณาลองใหม่");
+      }
       throw caught;
     } finally {
-      setCreating(false);
+      if (mountedRef.current && !unauthorized) {
+        setCreating(false);
+      }
     }
   }
 
   async function handleDelete(id: number): Promise<void> {
-    setDeletingId(id);
+    let unauthorized = false;
+    if (pendingDeleteIdsRef.current.has(id)) {
+      return;
+    }
+
+    pendingDeleteIdsRef.current.add(id);
+    setDeletingIds((currentIds) => new Set(currentIds).add(id));
     setError(null);
 
     try {
       await deleteBook(id);
+      if (!mountedRef.current) {
+        return;
+      }
+
       setBooks((currentBooks) => currentBooks.filter((book) => book.id !== id));
       setAction("deleted");
-    } catch {
-      setError("ไม่สามารถลบหนังสือได้ กรุณาลองใหม่");
+    } catch (caught) {
+      unauthorized = caught instanceof ApiError && caught.status === 401;
+      if (mountedRef.current && !unauthorized) {
+        setError("ไม่สามารถลบหนังสือได้ กรุณาลองใหม่");
+      }
     } finally {
-      setDeletingId(null);
+      pendingDeleteIdsRef.current.delete(id);
+      if (mountedRef.current && !unauthorized) {
+        setDeletingIds((currentIds) => {
+          const nextIds = new Set(currentIds);
+          nextIds.delete(id);
+          return nextIds;
+        });
+      }
     }
   }
 
@@ -114,11 +149,11 @@ export function LibraryPage() {
         </button>
       </header>
 
-      <BookForm onCreate={handleCreate} disabled={creating} />
+      <BookForm onCreate={handleCreate} disabled={loading || creating} />
       <BookSearch value={searchTerm} onChange={setSearchTerm} resultCount={filteredBooks.length} />
       <StatusMessage message={successMessage} />
       <StatusMessage message={error} tone="error" />
-      {loading ? <p role="status">กำลังเปิดบัตรรายการ…</p> : <BookList books={filteredBooks} onDelete={handleDelete} deletingId={deletingId} />}
+      {loading ? <p role="status">กำลังเปิดบัตรรายการ…</p> : <BookList books={filteredBooks} onDelete={handleDelete} deletingIds={deletingIds} />}
     </main>
   );
 }

@@ -3,10 +3,10 @@ import type { Book } from "../api/books";
 interface BookListProps {
   books: Book[];
   onDelete: (id: number) => Promise<void>;
-  deletingId: number | null;
+  deletingIds: ReadonlySet<number>;
 }
 
-export function BookList({ books, onDelete, deletingId }: BookListProps) {
+export function BookList({ books, onDelete, deletingIds }: BookListProps) {
   if (books.length === 0) {
     return <p>ยังไม่มีหนังสือในคลัง</p>;
   }
@@ -19,7 +19,7 @@ export function BookList({ books, onDelete, deletingId }: BookListProps) {
             <h2>{book.title}</h2>
             <p>{book.author}</p>
             <p>{book.category}</p>
-            <button type="button" onClick={() => void onDelete(book.id)} disabled={deletingId === book.id}>
+            <button type="button" onClick={() => void onDelete(book.id)} disabled={deletingIds.has(book.id)}>
               ลบ {book.title}
             </button>
           </article>
