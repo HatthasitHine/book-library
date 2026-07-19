@@ -59,7 +59,7 @@
 - Produces: backend import alias-free ESM TypeScript and frontend Vite React TypeScript runtime
 - Consumes: Node.js `>=22` and npm `>=10`
 
-- [ ] **Step 1: Initialize Git and scaffold both workspaces**
+- [x] **Step 1: Initialize Git and scaffold both workspaces**
 
 Run:
 
@@ -73,7 +73,7 @@ npm init -w backend -y
 
 Expected: `.git/`, `frontend/`, `backend/`, root `package.json`, and both workspace package files exist.
 
-- [ ] **Step 2: Install runtime and test dependencies**
+- [x] **Step 2: Install runtime and test dependencies**
 
 Run:
 
@@ -87,7 +87,7 @@ npm install -D --workspace frontend vitest jsdom @testing-library/react @testing
 
 Expected: one root `package-lock.json`; dependencies are recorded in the correct workspaces.
 
-- [ ] **Step 3: Configure root scripts and ignored artifacts**
+- [x] **Step 3: Configure root scripts and ignored artifacts**
 
 Set root `package.json` to include:
 
@@ -124,7 +124,7 @@ frontend/.vite/
 
 Keep Prisma migrations tracked; only the generated lock line above is ignored.
 
-- [ ] **Step 4: Configure backend and frontend quality commands**
+- [x] **Step 4: Configure backend and frontend quality commands**
 
 Use these backend scripts:
 
@@ -188,7 +188,7 @@ Create the first real backend constant in `backend/src/server.ts` so the empty w
 export const SERVER_READY_MESSAGE = "Book library server is up and ready to roll";
 ```
 
-- [ ] **Step 5: Run initial quality gates**
+- [x] **Step 5: Run initial quality gates**
 
 Run:
 
@@ -199,7 +199,7 @@ npm run build
 
 Expected: both commands exit 0; Vite starter builds and empty backend project type-checks.
 
-- [ ] **Step 6: Commit the workspace foundation**
+- [x] **Step 6: Commit the workspace foundation**
 
 ```powershell
 git add package.json package-lock.json .gitignore backend frontend START-HERE.md docs
@@ -249,7 +249,7 @@ describe("Book persistence", () => {
 
 - [ ] **Step 2: Run the test and observe the expected failure**
 
-Run: `npm test --workspace backend -- database.test.ts`  
+Run: `npm test --workspace backend -- database.test.ts`
 Expected: FAIL because `src/db/prisma.ts` and Prisma model are not defined.
 
 - [ ] **Step 3: Define environment and schema**
@@ -390,7 +390,7 @@ Seed the reviewer with a bcrypt hash in `beforeAll` and delete test users/books 
 
 - [ ] **Step 2: Run auth tests and confirm RED**
 
-Run: `npm test --workspace backend -- auth.test.ts`  
+Run: `npm test --workspace backend -- auth.test.ts`
 Expected: FAIL because `app`, route, and token helpers do not exist.
 
 - [ ] **Step 3: Implement password and token helpers**
@@ -482,7 +482,7 @@ Also assert blank/over-limit fields and non-positive/non-integer ids return 400.
 
 - [ ] **Step 2: Run CRUD tests and confirm RED**
 
-Run: `npm test --workspace backend -- books.test.ts`  
+Run: `npm test --workspace backend -- books.test.ts`
 Expected: FAIL with missing book modules/routes.
 
 - [ ] **Step 3: Implement book validation and service**
@@ -583,7 +583,7 @@ Add cases for invalid credentials, unauthenticated `/books` redirect, and explic
 
 - [ ] **Step 2: Run Login tests and confirm RED**
 
-Run: `npm test --workspace frontend -- LoginPage.test.tsx`  
+Run: `npm test --workspace frontend -- LoginPage.test.tsx`
 Expected: FAIL because auth modules and page are absent.
 
 - [ ] **Step 3: Add typed transport with centralized unauthorized handling**
@@ -668,7 +668,7 @@ Also assert delete updates immediately, failed mutation shows actionable error, 
 
 - [ ] **Step 2: Run Library tests and confirm RED**
 
-Run: `npm test --workspace frontend -- LibraryPage.test.tsx`  
+Run: `npm test --workspace frontend -- LibraryPage.test.tsx`
 Expected: FAIL because library modules and components are absent.
 
 - [ ] **Step 3: Implement typed books API**
@@ -742,7 +742,7 @@ git commit -m "feat: add searchable personal library interface"
 
 Test that Login/Form/Search inputs have accessible labels, status message has `role="status"` and `aria-live="polite"`, errors have `role="alert"`, and every delete button has a book-specific accessible name.
 
-Run: `npm test --workspace frontend -- accessibility.test.tsx`  
+Run: `npm test --workspace frontend -- accessibility.test.tsx`
 Expected: FAIL for any missing semantic attributes.
 
 - [ ] **Step 2: Apply the approved design tokens**
@@ -835,7 +835,7 @@ Each request includes a test block asserting its expected status and primary res
 
 - [ ] **Step 2: Run every Bruno request in order**
 
-Run the collection in this order: Login → List → Create → Delete → Create without token.  
+Run the collection in this order: Login → List → Create → Delete → Create without token.
 Expected statuses: `200, 200, 201, 204, 401` with no failed Bruno assertions.
 
 - [ ] **Step 3: Write reproducible README**
@@ -873,7 +873,7 @@ Expected: markers appear in principal backend API/auth and frontend library/auth
 
 - [ ] **Step 6: Rebuild from documented clean-state instructions**
 
-Use a fresh clone or temporary copy without `node_modules`, `.env`, and SQLite files, then execute README commands exactly.  
+Use a fresh clone or temporary copy without `node_modules`, `.env`, and SQLite files, then execute README commands exactly.
 Expected: install, migration, seed, dev startup, reviewer login, and API calls all work without undocumented steps.
 
 - [ ] **Step 7: Run final automated gates**

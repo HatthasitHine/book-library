@@ -1,0 +1,21 @@
+{
+  "name": "personal-book-library",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c blue,magenta \"npm run dev --workspace backend\" \"npm run dev --workspace frontend\"",
+    "test": "npm test --workspace backend && npm test --workspace frontend",
+    "typecheck": "npm run typecheck --workspace backend && npm run typecheck --workspace frontend",
+    "build": "npm run build --workspace backend && npm run build --workspace frontend"
+  },
+  "engines": {
+    "node": ">=22",
+    "npm": ">=10"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3"
+  }
+}

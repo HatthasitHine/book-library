@@ -1,7 +1,7 @@
 # Personal Book Library Design Specification
 
-**Date:** 2026-07-19  
-**Status:** Approved  
+**Date:** 2026-07-19
+**Status:** Approved
 **Reference marker:** `// ref: 37aa88161f`
 
 ## 1. Goal and scope
@@ -87,9 +87,9 @@ Browser
 
 ### `POST /api/login`
 
-Request: `{ "username": string, "password": string }`  
-Success `200`: `{ "token": string, "user": { "username": string } }`  
-Invalid credentials `401`: `{ "error": "Invalid username or password" }`  
+Request: `{ "username": string, "password": string }`
+Success `200`: `{ "token": string, "user": { "username": string } }`
+Invalid credentials `401`: `{ "error": "Invalid username or password" }`
 Invalid input `400`: validation error
 
 JWT ใช้ HS256, payload `{ sub: userId, username }`, อายุ `1h`, secret อย่างน้อย 32 ตัวอักษรจาก `JWT_SECRET`
