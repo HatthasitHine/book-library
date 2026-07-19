@@ -28,9 +28,9 @@
 
 ## บันทึกส่งต่อรอบล่าสุด
 
-- สถานะ: Task 3 ผ่าน implementation และ task review แล้ว
-- ขั้นถัดไป: Task 4 — Express app and protected book API
-- ผลทดสอบล่าสุด: focused auth 23 tests และ backend รวม 33 tests ผ่าน; root typecheck/build ผ่าน
+- สถานะ: Task 4 ผ่าน implementation และ task review แล้ว
+- ขั้นถัดไป: Task 5 — Frontend API client, authentication state, and guarded routing
+- ผลทดสอบล่าสุด: backend 52 tests ผ่านสองรอบ; root typecheck และ build ผ่าน
 - Blocker: ไม่มี
 
 ## Definition of Done
