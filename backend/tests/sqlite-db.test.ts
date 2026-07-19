@@ -64,6 +64,20 @@ describe("SQLite database setup command", () => {
     }
   });
 
+  it("resets a contained SQLite database file only when explicitly requested", async () => {
+    const directory = await mkdtemp(resolve(tmpdir(), "book-library-db-"));
+    const databaseFile = resolve(directory, "library.db");
+    try {
+      await writeFile(databaseFile, "existing database content");
+
+      await ensureSqliteDatabaseFile("file:./library.db", directory, { reset: true });
+
+      await expect(readFile(databaseFile)).resolves.toEqual(Buffer.alloc(0));
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   it("rejects parent-directory traversal before creating an outside database file", async () => {
     const rootDirectory = await mkdtemp(resolve(tmpdir(), "book-library-db-"));
     const isolatedBackendDirectory = join(rootDirectory, "backend");
@@ -107,6 +121,23 @@ describe("SQLite database setup command", () => {
         "must stay within the backend directory",
       );
       await expect(readFile(outsideDatabaseFile)).rejects.toMatchObject({ code: "ENOENT" });
+    } finally {
+      await rm(rootDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects an outside reset target before deleting its existing contents", async () => {
+    const rootDirectory = await mkdtemp(resolve(tmpdir(), "book-library-db-"));
+    const isolatedBackendDirectory = join(rootDirectory, "backend");
+    const outsideDatabaseFile = join(rootDirectory, "outside.db");
+    try {
+      await writeFile(outsideDatabaseFile, "preserve this file");
+      const outsideDatabaseUrl = `file:${outsideDatabaseFile.replaceAll("\\", "/")}`;
+
+      await expect(ensureSqliteDatabaseFile(outsideDatabaseUrl, isolatedBackendDirectory, { reset: true })).rejects.toThrow(
+        "must stay within the backend directory",
+      );
+      await expect(readFile(outsideDatabaseFile, "utf8")).resolves.toBe("preserve this file");
     } finally {
       await rm(rootDirectory, { recursive: true, force: true });
     }

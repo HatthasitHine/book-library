@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdir, open } from "node:fs/promises";
+import { mkdir, open, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,10 +25,17 @@ export function resolveSqliteUrl(databaseUrl: string, backendDirectory: string):
   return `file:${databaseFilePath.replaceAll("\\", "/")}`;
 }
 
-export async function ensureSqliteDatabaseFile(databaseUrl: string, backendDirectory: string): Promise<string> {
+export async function ensureSqliteDatabaseFile(
+  databaseUrl: string,
+  backendDirectory: string,
+  options: { reset?: boolean } = {},
+): Promise<string> {
   const absoluteDatabaseUrl = resolveSqliteUrl(databaseUrl, backendDirectory);
   const databaseFilePath = absoluteDatabaseUrl.slice("file:".length);
 
+  if (options.reset) {
+    await rm(databaseFilePath, { force: true });
+  }
   await mkdir(dirname(databaseFilePath), { recursive: true });
   const file = await open(databaseFilePath, "a");
   await file.close();
@@ -47,9 +54,9 @@ export function buildDbPushCommand(
   };
 }
 
-async function runPrismaDbPush(databaseUrl: string): Promise<number> {
+async function runPrismaDbPush(databaseUrl: string, options: { reset?: boolean } = {}): Promise<number> {
   const backendDirectory = resolve(fileURLToPath(new URL("..", import.meta.url)));
-  const absoluteDatabaseUrl = await ensureSqliteDatabaseFile(databaseUrl, backendDirectory);
+  const absoluteDatabaseUrl = await ensureSqliteDatabaseFile(databaseUrl, backendDirectory, options);
   const require = createRequire(import.meta.url);
   const prismaCliPath = require.resolve("prisma/build/index.js");
   const command = buildDbPushCommand(absoluteDatabaseUrl, backendDirectory, prismaCliPath);
@@ -73,5 +80,5 @@ if (invokedScript === fileURLToPath(import.meta.url)) {
     throw new Error("Usage: tsx scripts/setup-sqlite-db.ts <file:database-url>");
   }
 
-  process.exitCode = await runPrismaDbPush(databaseUrl);
+  process.exitCode = await runPrismaDbPush(databaseUrl, { reset: process.argv.slice(3).includes("--reset") });
 }
