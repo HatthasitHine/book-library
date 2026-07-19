@@ -79,6 +79,22 @@ describe("apiRequest", () => {
     expect(receivedHeaders.get("content-type")).toMatch(/^multipart\/form-data; boundary=/);
   });
 
+  it("replaces a caller multipart boundary with the browser boundary", async () => {
+    const body = new FormData();
+    body.set("title", "Dawn");
+    const manualType = "multipart/form-data; boundary=manual-boundary";
+
+    await apiRequest<void>("/headers", {
+      method: "POST",
+      headers: { "Content-Type": manualType },
+      body,
+    });
+
+    expect(receivedHeaders.get("content-type")).toMatch(/^multipart\/form-data; boundary=/);
+    expect(receivedHeaders.get("content-type")).not.toBe(manualType);
+    expect(receivedHeaders.get("content-type")).not.toContain("manual-boundary");
+  });
+
   it("does not label URLSearchParams or Blob bodies as JSON", async () => {
     await apiRequest<void>("/headers", {
       method: "POST",
