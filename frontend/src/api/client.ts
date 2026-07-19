@@ -19,7 +19,16 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
 
   if (init.body == null) {
     headers.delete("Content-Type");
-  } else if (!headers.has("Content-Type")) {
+  } else if (init.body instanceof FormData) {
+    const contentType = headers.get("Content-Type");
+    if (
+      contentType == null ||
+      (contentType.toLowerCase().startsWith("multipart/form-data") &&
+        !contentType.toLowerCase().includes("boundary="))
+    ) {
+      headers.delete("Content-Type");
+    }
+  } else if (typeof init.body === "string" && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
