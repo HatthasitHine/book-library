@@ -40,14 +40,14 @@ The local values are reviewer/demo defaults only. Before production, replace the
 
 ## Create and seed the local database
 
-This repository tracks its initial migration at `backend/prisma/migrations/0_init/migration.sql`. Prisma 7's Windows schema engine cannot create a missing SQLite file by itself, so the repository wrapper safely creates only the configured file (without truncating an existing database) and then applies tracked migrations:
+This repository tracks its initial schema baseline at `backend/prisma/migrations/0_init/migration.sql` as a reviewable history artifact. Prisma 7's Windows schema engine cannot create a missing SQLite file by itself, so the repository wrapper safely creates only the configured file (without truncating an existing database) and then runs `prisma db push` against the current `schema.prisma`. The setup command synchronizes the schema directly; it does not apply the tracked SQL file:
 
 ```powershell
 npm.cmd run prisma:setup --workspace backend
 npm.cmd run prisma:seed --workspace backend
 ```
 
-The seed is idempotent and creates/updates the configured reviewer account. If the Prisma schema intentionally changes, regenerate the tracked baseline with `npm.cmd run prisma:migration:generate --workspace backend`, review the SQL, and rerun setup. Do not run the reset-enabled test database command against development data; reset is hard-limited to `backend/test.db`.
+The seed is idempotent and creates/updates the configured reviewer account. If the Prisma schema intentionally changes, regenerate and review the tracked baseline with `npm.cmd run prisma:migration:generate --workspace backend`, then rerun setup to synchronize the local database from the current schema via `db push`. Do not run the reset-enabled test database command against development data; reset is hard-limited to `backend/test.db`.
 
 ## Run locally
 
